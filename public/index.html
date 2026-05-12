@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Energie Dashboard | Home Assistant</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">⚡</span>
+                    <h1>Energie Dashboard</h1>
+                </div>
+                <div class="header-controls">
+                    <select id="period-select" class="period-select">
+                        <option value="hour">1 Heure</option>
+                        <option value="day" selected>24 Heures</option>
+                        <option value="week">7 Jours</option>
+                        <option value="month">30 Jours</option>
+                    </select>
+                    <select id="refresh-interval-select" class="period-select" title="Intervalle d'auto-refresh">
+                        <option value="10">10s</option>
+                        <option value="30" selected>30s</option>
+                        <option value="60">1 min</option>
+                        <option value="300">5 min</option>
+                    </select>
+                    <button id="autorefresh-btn" class="refresh-btn autorefresh-on" title="Auto-refresh actif">
+                        <span class="btn-icon">⏱</span> Auto
+                    </button>
+                    <button id="refresh-btn" class="refresh-btn">
+                        <span class="btn-icon">🔄</span> Rafraîchir
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="energy">⚡ Énergie</button>
+            <button class="tab-btn" data-tab="water">💧 Eau</button>
+        </nav>
+
+        <!-- ===== ENERGY TAB ===== -->
+        <div id="tab-energy" class="tab-content">
+
+            <!-- Main Stats Cards -->
+            <section class="stats-grid">
+                <div class="stat-card featured">
+                    <div class="stat-icon">💡</div>
+                    <div class="stat-info">
+                        <span class="stat-label">Puissance Actuelle</span>
+                        <div class="stat-value">
+                            <span id="current-power">--</span> <span class="stat-unit">W</span>
+                        </div>
+                        <div class="stat-secondary">
+                            Surplus: <span id="surplus-power">--</span> W
+                        </div>
+                    </div>
+                    <div class="stat-glow"></div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📉</div>
+                    <div class="stat-info">
+                        <span class="stat-label" id="label-consumption">Réseau (HP+HC)</span>
+                        <div class="stat-value">
+                            <span id="today-consumption">--</span> <span class="stat-unit">kWh</span>
+                        </div>
+                        <div class="stat-secondary">
+                            Coût: <span id="today-cost">--</span> €
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-info">
+                        <span class="stat-label" id="label-production">Production Solaire</span>
+                        <div class="stat-value">
+                            <span id="today-production">--</span> <span class="stat-unit">kWh</span>
+                        </div>
+                        <div class="stat-secondary">
+                            Revente: <span id="surplus-revenue">--</span> € · <span id="surplus-kwh">--</span> kWh injectés
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card total-card">
+                    <div class="stat-icon">🏠</div>
+                    <div class="stat-info">
+                        <span class="stat-label" id="label-total">Conso. Maison</span>
+                        <div class="stat-value">
+                            <span id="total-consumption">--</span> <span class="stat-unit">kWh</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section">
+                <div class="chart-card large">
+                    <div class="chart-header">
+                        <h2>📊 Consommation & Production</h2>
+                        <div class="chart-legend">
+                            <span class="legend-item"><span class="legend-dot consumption"></span> Consommation</span>
+                            <span class="legend-item"><span class="legend-dot production"></span> Production</span>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="energyChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h2>⚡ Puissance Instantanée</h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="powerChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Top Consumers -->
+            <section class="top-consumers">
+                <div class="section-header">
+                    <h2>🔥 Top Consommateurs</h2>
+                    <span class="update-time">Mis à jour: <span id="last-update">--</span></span>
+                </div>
+                <div class="consumers-grid" id="consumers-grid"></div>
+            </section>
+
+            <!-- Detailed Stats -->
+            <section class="detailed-stats">
+                <div class="stats-row">
+                    <div class="detail-card">
+                        <h3>🔆 Heures Pleines</h3>
+                        <div class="detail-value">
+                            <span id="hp-value">--</span> kWh
+                        </div>
+                        <div class="detail-sub">0,1876 €/kWh</div>
+                    </div>
+                    <div class="detail-card">
+                        <h3>🌙 Heures Creuses</h3>
+                        <div class="detail-value">
+                            <span id="hc-value">--</span> kWh
+                        </div>
+                        <div class="detail-sub">0,1456 €/kWh</div>
+                    </div>
+                    <div class="detail-card">
+                        <h3>⚡ Pic de Puissance</h3>
+                        <div class="detail-value">
+                            <span id="peak-power">--</span> W
+                        </div>
+                        <div class="detail-sub">Sur la période</div>
+                    </div>
+                    <div class="detail-card">
+                        <h3>🌱 Auto-consommation</h3>
+                        <div class="detail-value">
+                            <span id="self-consumption">--</span> %
+                        </div>
+                        <div class="detail-sub">% prod utilisée localement</div>
+                    </div>
+                    <div class="detail-card">
+                        <h3>🏡 Autosuffisance</h3>
+                        <div class="detail-value">
+                            <span id="self-sufficiency">--</span> %
+                        </div>
+                        <div class="detail-sub">% conso couverte par le solaire</div>
+                    </div>
+                </div>
+            </section>
+
+        </div><!-- end #tab-energy -->
+
+        <!-- ===== WATER TAB ===== -->
+        <div id="tab-water" class="tab-content" style="display:none">
+
+            <!-- Water Stats Cards -->
+            <section class="stats-grid">
+                <div class="stat-card water-featured">
+                    <div class="stat-icon">💧</div>
+                    <div class="stat-info">
+                        <span class="stat-label" id="label-water">Conso Eau</span>
+                        <div class="stat-value">
+                            <span id="water-today">--</span> <span class="stat-unit" id="water-unit">L</span>
+                        </div>
+                    </div>
+                    <div class="stat-glow water-glow"></div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-info">
+                        <span class="stat-label" id="label-water-cost">Coût Eau</span>
+                        <div class="stat-value">
+                            <span id="water-cost-today">--</span> <span class="stat-unit">€</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Water Chart -->
+            <section class="charts-section" style="grid-template-columns: 1fr;">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h2>💧 Consommation d'Eau</h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="waterChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+        </div><!-- end #tab-water -->
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>❤️ Données depuis <strong>Home Assistant</strong> | <span id="footer-time">--</span></p>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner-ring"></div>
+            <span>Chargement...</span>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
