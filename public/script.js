@@ -408,11 +408,9 @@ const fetchWaterData = async (period) => {
 
         const toM3 = (liters) => liters / 1000;
 
-        // Today: delta depuis minuit (correct car reset à 00:00)
+        // Today: delta depuis minuit (historyDeltaWithResets gère les resets et les valeurs résiduelles)
         const todayH = (todayRaw ? todayRaw[0] || [] : []).filter(h => !isNaN(parseFloat(h.state)));
-        const waterTodayL = todayH.length >= 2
-            ? Math.max(0, parseFloat(todayH[todayH.length - 1].state) - parseFloat(todayH[0].state))
-            : 0;
+        const waterTodayL = historyDeltaWithResets(todayH);
 
         // Période : utilise historyDeltaWithResets (gère les remises à zéro quotidiennes)
         const waterPeriodL = historyDeltaWithResets(periodHistory);
