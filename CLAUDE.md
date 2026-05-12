@@ -38,7 +38,7 @@ energie-dashboard/
 
 **Batch endpoint:** The frontend primarily uses `/api/all-energy-data?period=X` which returns all current states, device data (with period energy deltas), and history in a single call (~33 individual calls → 1).
 
-**Configuration:** `HA_URL` and `HA_TOKEN` are required environment variables (no fallback values). `public/script.js` holds `HA_CONFIG` with pricing only:
+**Configuration:** `HA_URL` and `HA_TOKEN` are required environment variables. `docker-compose.yml` a des valeurs par défaut (via `${VAR:-default}`) donc fonctionne sans config Portainer. `public/script.js` holds `HA_CONFIG` with pricing only:
 ```js
 const HA_CONFIG = {
     priceHP: 0.1876,    // €/kWh heures pleines
