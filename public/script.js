@@ -371,6 +371,30 @@ const initWaterChart = () => {
     });
 };
 
+// Calcule les valeurs cumulées d'un historique qui se remet à zéro (ex: compteur eau)
+const historyCumulative = (history) => {
+    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
+    if (valid.length === 0) return { values: [], labels: [] };
+
+    const nums = valid.map(h => parseFloat(h.state));
+    const cumulative = [0];
+    let cumul = 0;
+    let segStart = nums[0];
+
+    for (let i = 1; i < nums.length; i++) {
+        if (nums[i] < nums[i - 1]) {
+            cumul += nums[i - 1] - segStart;
+            segStart = nums[i];
+        }
+        cumulative.push(cumul + Math.max(0, nums[i] - segStart));
+    }
+
+    return {
+        values: cumulative,
+        labels: valid.map(h => formatDate(h.last_changed))
+    };
+};
+
 // ===== Fetch Water Data =====
 const fetchWaterData = async (period) => {
     try {
@@ -384,31 +408,24 @@ const fetchWaterData = async (period) => {
 
         const toM3 = (liters) => liters / 1000;
 
-        // Today: delta depuis minuit
+        // Today: delta depuis minuit (correct car reset à 00:00)
         const todayH = (todayRaw ? todayRaw[0] || [] : []).filter(h => !isNaN(parseFloat(h.state)));
         const waterTodayL = todayH.length >= 2
             ? Math.max(0, parseFloat(todayH[todayH.length - 1].state) - parseFloat(todayH[0].state))
             : 0;
 
-        // Période : min/max sur tous les points valides (robuste aux données éparses)
-        const validPeriod = periodHistory.filter(h => !isNaN(parseFloat(h.state)));
-        const periodValues = validPeriod.map(h => parseFloat(h.state));
-        const waterPeriodL = periodValues.length >= 2
-            ? Math.max(0, Math.max(...periodValues) - Math.min(...periodValues))
-            : 0;
+        // Période : utilise historyDeltaWithResets (gère les remises à zéro quotidiennes)
+        const waterPeriodL = historyDeltaWithResets(periodHistory);
         const waterPeriod = toM3(waterPeriodL);
 
-        // Graphique : accumulation depuis le début de la période
-        const minVal = periodValues.length > 0 ? Math.min(...periodValues) : 0;
-        const chartValues = validPeriod.map(h => toM3(Math.max(0, parseFloat(h.state) - minVal)));
-        const chartLabels = validPeriod.map(h => formatDate(h.last_changed));
+        // Graphique : accumulation cumulée avec gestion des resets
+        const { values: chartValues, labels: chartLabels } = historyCumulative(periodHistory);
 
         const lbl = PERIOD_LABELS[period];
         elements.labelWater.textContent = `Conso Eau ${lbl}`;
         elements.labelWaterCost.textContent = `Coût Eau ${lbl}`;
 
         // Heure/24h → L, 7j/30j → m³
-        // 'day' utilise le delta depuis minuit (eau du jour), 'hour' le delta sur l'heure
         const useLiters = period === 'hour' || period === 'day';
         const waterDisplayL = period === 'day' ? waterTodayL : waterPeriodL;
         const waterVal = useLiters ? waterDisplayL : toM3(waterDisplayL);
@@ -421,7 +438,7 @@ const fetchWaterData = async (period) => {
 
         if (waterChart) {
             waterChart.data.labels = chartLabels;
-            waterChart.data.datasets[0].data = chartValues;
+            waterChart.data.datasets[0].data = chartValues.map(v => toM3(v));
             waterChart.update('smooth');
         }
     } catch (error) {
