@@ -637,9 +637,9 @@ const initTabs = () => {
 
 // ===== Event Listeners =====
 const initEventListeners = () => {
-    elements.refreshBtn.addEventListener('click', getCurrentRefreshFn);
+    elements.refreshBtn.addEventListener('click', () => getCurrentRefreshFn()());
 
-    elements.periodSelect.addEventListener('change', getCurrentRefreshFn);
+    elements.periodSelect.addEventListener('change', () => getCurrentRefreshFn()());
 
     elements.refreshIntervalSelect.addEventListener('change', () => {
         applyAutoRefresh();

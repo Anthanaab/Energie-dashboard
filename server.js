@@ -148,6 +148,35 @@ app.get('/api/all-energy-data', async (req, res) => {
             ['sensor.garage_prise_garage_194_energy', 'sensor.garage_prise_garage_194_power', 'Garage']
         ];
 
+        // === Phase 1 : fetch all current states (28 calls, rapides) ===
+        const statePromises = [
+            ...mainEntityIds.map(id => haClient.get(`/states/${id}`)),
+            ...devicePairs.flatMap(([e, p]) => [haClient.get(`/states/${e}`), haClient.get(`/states/${p}`)])
+        ];
+
+        const stateResults = await Promise.allSettled(statePromises);
+
+        // Build main states
+        const main = {};
+        mainEntityIds.forEach((id, i) => {
+            const r = stateResults[i];
+            main[id] = r?.status === 'fulfilled' && r.value?.data
+                ? parseFloat(r.value.data.state)
+                : null;
+        });
+
+        // Build device current powers
+        const deviceOff = mainEntityIds.length;
+        const devices = devicePairs.map(([energyEntity, powerEntity, name], i) => {
+            const pState = stateResults[deviceOff + i * 2 + 1];
+            const power = pState?.status === 'fulfilled' && pState.value?.data
+                ? parseFloat(pState.value.data.state)
+                : 0;
+            return { name, energy: 0, power };
+        });
+
+        // === Phase 2 : fetch histories (2 appels batch HA au lieu de 16) ===
+        // HA supporte filter_entity_id=sensor.a,sensor.b,... en un seul appel
         const historyEntityIds = [
             'sensor.envoy_122303081421_lifetime_net_energy_consumption',
             'sensor.envoy_122303081421_lifetime_net_energy_production',
@@ -157,63 +186,36 @@ app.get('/api/all-energy-data', async (req, res) => {
             'sensor.ecojoko_surplus_de_production'
         ];
 
-        // Fetch current states
-        const mainPromises = mainEntityIds.map(id => haClient.get(`/states/${id}`));
-        const deviceStatePromises = devicePairs.flatMap(([energyEntity, powerEntity]) => [
-            haClient.get(`/states/${energyEntity}`),
-            haClient.get(`/states/${powerEntity}`)
-        ]);
-        const deviceHistoryPromises = devicePairs.map(([energyEntity]) =>
-            haClient.get(`/history/period/${startISO}?filter=${energyEntity}&end_time=${endISO}`)
-        );
-        const historyPromises = historyEntityIds.map(id =>
-            haClient.get(`/history/period/${startISO}?filter=${id}&end_time=${endISO}`)
-        );
+        const deviceEnergyIds = devicePairs.map(([e]) => e);
 
-        const [mainResults, deviceStateResults, deviceHistoryResults, historyResults] = await Promise.all([
-            Promise.allSettled(mainPromises),
-            Promise.allSettled(deviceStatePromises),
-            Promise.allSettled(deviceHistoryPromises),
-            Promise.allSettled(historyPromises)
+        const [historyBatch, deviceHistoryBatch] = await Promise.all([
+            haClient.get(`/history/period/${startISO}`, {
+                params: { filter_entity_id: historyEntityIds.join(','), end_time: endISO }
+            }).catch(() => ({ data: [] })),
+            haClient.get(`/history/period/${startISO}`, {
+                params: { filter_entity_id: deviceEnergyIds.join(','), end_time: endISO }
+            }).catch(() => ({ data: [] }))
         ]);
 
-        // Build main states response
-        const main = {};
-        mainEntityIds.forEach((id, i) => {
-            const r = mainResults[i];
-            main[id] = r?.status === 'fulfilled' && r.value?.data
-                ? parseFloat(r.value.data.state)
-                : null;
-        });
-
-        // Build devices response with period energy delta + current power
-        const devices = [];
-        devicePairs.forEach(([energyEntity, powerEntity, name], i) => {
-            const energyState = deviceStateResults[i * 2];
-            const powerState = deviceStateResults[i * 2 + 1];
-            const power = powerState?.status === 'fulfilled' && powerState.value?.data
-                ? parseFloat(powerState.value.data.state)
-                : 0;
-
-            // Energy delta over period from history
-            const histResult = deviceHistoryResults[i];
-            let energy = 0;
-            if (histResult?.status === 'fulfilled' && histResult.value?.data?.[0]?.length >= 2) {
-                const data = histResult.value.data[0];
-                const first = parseFloat(data[0].state) || 0;
-                const last = parseFloat(data[data.length - 1].state) || 0;
-                energy = Math.max(0, last - first);
-            }
-
-            devices.push({ name, energy, power });
-        });
-
-        // Build history response — HA history API returns [[{state,last_changed},...]]
+        // Parse history — HA returns [[...states for entity 0...], [...states for entity 1...], ...]
         const histKeys = ['consumption', 'production', 'power', 'hp', 'hc', 'surplus'];
         const history = {};
+        const rawHist = Array.isArray(historyBatch.data) ? historyBatch.data : [];
         histKeys.forEach((key, i) => {
-            const r = historyResults[i];
-            history[key] = r?.status === 'fulfilled' ? (r.value?.data?.[0] || []) : [];
+            history[key] = rawHist[i] || [];
+        });
+
+        // Parse device histories — compute energy deltas
+        const rawDevHist = Array.isArray(deviceHistoryBatch.data) ? deviceHistoryBatch.data : [];
+        devicePairs.forEach(([energyEntity, powerEntity, name], i) => {
+            const hist = rawDevHist[i] || [];
+            let energy = 0;
+            if (hist.length >= 2) {
+                const first = parseFloat(hist[0].state) || 0;
+                const last = parseFloat(hist[hist.length - 1].state) || 0;
+                energy = Math.max(0, last - first);
+            }
+            devices[i].energy = energy;
         });
 
         res.json({ main, devices, history });
