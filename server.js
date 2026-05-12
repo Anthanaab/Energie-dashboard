@@ -198,8 +198,8 @@ app.get('/api/all-energy-data', async (req, res) => {
             // Energy delta over period from history
             const histResult = deviceHistoryResults[i];
             let energy = 0;
-            if (histResult?.status === 'fulfilled' && histResult.value?.data?.[0]?.data?.length >= 2) {
-                const data = histResult.value.data[0].data;
+            if (histResult?.status === 'fulfilled' && histResult.value?.data?.[0]?.length >= 2) {
+                const data = histResult.value.data[0];
                 const first = parseFloat(data[0].state) || 0;
                 const last = parseFloat(data[data.length - 1].state) || 0;
                 energy = Math.max(0, last - first);
@@ -208,12 +208,12 @@ app.get('/api/all-energy-data', async (req, res) => {
             devices.push({ name, energy, power });
         });
 
-        // Build history response
+        // Build history response — HA history API returns [[{state,last_changed},...]]
         const histKeys = ['consumption', 'production', 'power', 'hp', 'hc', 'surplus'];
         const history = {};
         histKeys.forEach((key, i) => {
             const r = historyResults[i];
-            history[key] = r?.status === 'fulfilled' ? (r.value?.data?.[0]?.data || []) : [];
+            history[key] = r?.status === 'fulfilled' ? (r.value?.data?.[0] || []) : [];
         });
 
         res.json({ main, devices, history });
