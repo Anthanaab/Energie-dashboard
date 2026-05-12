@@ -407,12 +407,15 @@ const fetchWaterData = async (period) => {
         elements.labelWater.textContent = `Conso Eau ${lbl}`;
         elements.labelWaterCost.textContent = `Coût Eau ${lbl}`;
 
-        // Aujourd'hui → L, autres périodes → m³
-        const waterDisplay = period === 'day' ? waterTodayL : waterPeriodL;
-        const waterCost = period === 'day' ? toM3(waterTodayL) * HA_CONFIG.priceWater : waterPeriod * HA_CONFIG.priceWater;
-        const waterUnit = period === 'day' ? 'L' : 'm³';
+        // Heure/24h → L, 7j/30j → m³
+        // 'day' utilise le delta depuis minuit (eau du jour), 'hour' le delta sur l'heure
+        const useLiters = period === 'hour' || period === 'day';
+        const waterDisplayL = period === 'day' ? waterTodayL : waterPeriodL;
+        const waterVal = useLiters ? waterDisplayL : toM3(waterDisplayL);
+        const waterCost = toM3(waterDisplayL) * HA_CONFIG.priceWater;
+        const waterUnit = useLiters ? 'L' : 'm³';
 
-        elements.waterToday.textContent = period === 'day' ? formatNumber(waterDisplay, 0) : formatNumber(waterPeriod, 3);
+        elements.waterToday.textContent = useLiters ? formatNumber(waterDisplayL, 0) : formatNumber(waterVal, 3);
         document.getElementById('water-unit').textContent = waterUnit;
         elements.waterCostToday.textContent = formatNumber(waterCost, 2);
 
