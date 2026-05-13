@@ -161,19 +161,6 @@ const toLocalISO = (date) => {
     return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
 };
 
-// historyDeltaWithResets avec protection valeurs négatives et constantes
-const safeDelta = (history) => {
-    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
-    if (valid.length < 2) return 0;
-    // Clip les valeurs négatives à 0 (surplus négatif = conso réseau, pas d'injection)
-    // Puis historyDeltaWithResets gère les remises à zéro quotidiennes
-    const clipped = valid.map(h => ({
-        ...h,
-        state: String(Math.max(0, parseFloat(h.state)))
-    }));
-    return historyDeltaWithResets(clipped);
-};
-
 const getTrendEmoji = (value, previousValue) => {
     if (previousValue === null) return '';
     if (value > previousValue) return '↑';
@@ -542,10 +529,11 @@ const fetchAllData = async () => {
 
         currentData.periodHP = historyDeltaWithResets(hpHistory);
         currentData.periodHC = historyDeltaWithResets(hcHistory);
-        currentData.periodSurplus = safeDelta(surplusHistory);
-
-        // DEBUG surplus
-        console.warn(`[surplus] period=${period} history_len=${surplusHistory.length} first=${surplusHistory[0]?.state} last=${surplusHistory[surplusHistory.length-1]?.state} delta=${currentData.periodSurplus}`);
+        // Surplus calculé à partir du bilan énergétique (production + import - conso)
+        // plutôt que du capteur Ecojoko dont l'historique est peu fiable
+        currentData.periodSurplus = Math.max(0,
+            currentData.periodProduction + currentData.periodHP + currentData.periodHC - currentData.periodConsumption
+        );
         currentData.periodProduction = historyDelta(productionHistory) * 1000;
         currentData.periodConsumption = historyDelta(consumptionHistory) * 1000;
 
