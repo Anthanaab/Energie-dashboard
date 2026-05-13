@@ -480,12 +480,13 @@ const fetchAllData = async () => {
         showLoading();
         const period = elements.periodSelect.value;
 
-        // Reset period deltas — évite d'afficher des données périmées si l'appel échoue
+        // Reset period deltas + UI immédiatement (évite d'afficher des données périmées)
         currentData.periodHP = 0;
         currentData.periodHC = 0;
         currentData.periodSurplus = 0;
         currentData.periodProduction = 0;
         currentData.periodConsumption = 0;
+        updateUI();
 
         const data = await fetchHA(`all-energy-data?period=${period}`);
         if (!data) throw new Error('No data from server');
