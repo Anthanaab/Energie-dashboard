@@ -66,11 +66,15 @@ Sensor definitions are in `server.js` (the `/api/all-energy-data` endpoint) and 
 ### Sensor gotchas
 
 - **Enphase lifetime sensors are in MWh**, not kWh → multiply delta by 1000
-  - `sensor.envoy_122303081421_lifetime_net_energy_consumption` = total home load (solar + grid), in MWh
+  - `sensor.envoy_122303081421_lifetime_net_energy_consumption` = **grid net** (import − export), NOT total home load. In MWh. When exporting > importing, the delta is negative.
   - `sensor.envoy_122303081421_lifetime_net_energy_production` = total solar produced, in MWh
 - **Ecojoko HP/HC/surplus sensors reset daily at midnight** → use `historyDeltaWithResets()` to sum across resets for multi-day periods
 - **HA history API defaults to 24h** without `end_time` param → always pass `end_time=now` in history calls
 - **Ecojoko `sensor.ecojoko_consommation_temps_reel`** (current power W) can go negative during solar export → clip with `Math.max(0, v)`
+- **Ecojoko `sensor.ecojoko_surplus_de_production`** (kWh, total_increasing) can go negative at night.
+  L'historique de ce capteur n'est pas fiable pour le calcul du surplus période.
+  → Le surplus est **calculé** côté frontend : `surplus = HP + HC − periodConsumption`
+  (HP+HC = import réseau Ecojoko, periodConsumption = net Enphase = import − export)
 
 ## History helper functions
 
@@ -95,6 +99,18 @@ selfConsumed       = production − surplus_injecté
 auto-consommation  = selfConsumed / production × 100      (% de la prod utilisée localement)
 autosuffisance     = selfConsumed / (HP + HC + selfConsumed) × 100  (% de la conso couverte par solaire)
 ```
+
+### Surplus calculation
+
+Le surplus n'est **pas** lu depuis `sensor.ecojoko_surplus_de_production` (historique peu fiable).
+Il est **calculé** à partir du bilan Enphase + Ecojoko :
+
+```
+surplus = HP + HC − periodConsumption
+```
+
+Où `periodConsumption` = delta du capteur `lifetime_net_energy_consumption` (Enphase, en MWh × 1000).
+Quand le net Enphase est négatif (export > import), le surplus dépasse (HP+HC).
 
 ## UI layout (Énergie tab)
 
