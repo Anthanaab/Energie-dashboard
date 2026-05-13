@@ -161,6 +161,16 @@ const toLocalISO = (date) => {
     return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
 };
 
+// historyDeltaWithResets avec détection de valeurs constantes (évite les faux deltas)
+const safeDelta = (history) => {
+    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
+    if (valid.length < 2) return 0;
+    const first = parseFloat(valid[0].state);
+    const allSame = valid.every(h => Math.abs(parseFloat(h.state) - first) < 0.0005);
+    if (allSame) return 0;
+    return historyDeltaWithResets(history);
+};
+
 const getTrendEmoji = (value, previousValue) => {
     if (previousValue === null) return '';
     if (value > previousValue) return '↑';
@@ -529,7 +539,7 @@ const fetchAllData = async () => {
 
         currentData.periodHP = historyDeltaWithResets(hpHistory);
         currentData.periodHC = historyDeltaWithResets(hcHistory);
-        currentData.periodSurplus = historyDeltaWithResets(surplusHistory);
+        currentData.periodSurplus = safeDelta(surplusHistory);
         currentData.periodProduction = historyDelta(productionHistory) * 1000;
         currentData.periodConsumption = historyDelta(consumptionHistory) * 1000;
 
