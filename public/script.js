@@ -165,20 +165,12 @@ const toLocalISO = (date) => {
 const safeDelta = (history) => {
     const valid = history.filter(h => !isNaN(parseFloat(h.state)));
     if (valid.length < 2) return 0;
-
-    const values = valid.map(h => parseFloat(h.state));
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-
-    // Si toutes les valeurs sont identiques (tolérance 0.01 kWh), pas de delta
-    if (max - min < 0.01) return 0;
-
-    // Clippe les valeurs négatives à 0 : un surplus négatif = conso réseau, pas d'injection
+    // Clip les valeurs négatives à 0 (surplus négatif = conso réseau, pas d'injection)
+    // Puis historyDeltaWithResets gère les remises à zéro quotidiennes
     const clipped = valid.map(h => ({
         ...h,
         state: String(Math.max(0, parseFloat(h.state)))
     }));
-
     return historyDeltaWithResets(clipped);
 };
 
