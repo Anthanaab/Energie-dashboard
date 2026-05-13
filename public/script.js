@@ -399,19 +399,18 @@ const historyCumulative = (history) => {
 const fetchWaterData = async (period) => {
     try {
         const now = new Date();
-        const midnightISO = toLocalISO(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0));
         const endISO = toLocalISO(now);
 
-        const [todayRaw, periodHistory] = await Promise.all([
-            fetchHA(`history/period/${midnightISO}?filter=${SENSORS.water.total}&end_time=${endISO}`),
+        // Today : l'état courant = conso depuis minuit (le capteur reset à 00:00)
+        const [waterState, periodHistory] = await Promise.all([
+            fetchHA(`states/${SENSORS.water.total}`),
             getHistory(SENSORS.water.total, period)
         ]);
 
         const toM3 = (liters) => liters / 1000;
 
-        // Today: delta depuis minuit (historyDeltaWithResets gère les resets et les valeurs résiduelles)
-        const todayH = (todayRaw ? todayRaw[0] || [] : []).filter(h => !isNaN(parseFloat(h.state)));
-        const waterTodayL = historyDeltaWithResets(todayH);
+        // Conso du jour = valeur actuelle du capteur (reset à minuit → état = total du jour)
+        const waterTodayL = waterState ? Math.max(0, parseFloat(waterState.state) || 0) : 0;
 
         // Période : utilise historyDeltaWithResets (gère les remises à zéro quotidiennes)
         const waterPeriodL = historyDeltaWithResets(periodHistory);
