@@ -543,6 +543,9 @@ const fetchAllData = async () => {
         currentData.periodHP = historyDeltaWithResets(hpHistory);
         currentData.periodHC = historyDeltaWithResets(hcHistory);
         currentData.periodSurplus = safeDelta(surplusHistory);
+
+        // DEBUG surplus
+        console.warn(`[surplus] period=${period} history_len=${surplusHistory.length} first=${surplusHistory[0]?.state} last=${surplusHistory[surplusHistory.length-1]?.state} delta=${currentData.periodSurplus}`);
         currentData.periodProduction = historyDelta(productionHistory) * 1000;
         currentData.periodConsumption = historyDelta(consumptionHistory) * 1000;
 
