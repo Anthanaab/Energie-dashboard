@@ -400,9 +400,10 @@ const fetchWaterData = async (period) => {
     try {
         const now = new Date();
         const midnightISO = toLocalISO(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0));
+        const endISO = toLocalISO(now);
 
         const [todayRaw, periodHistory] = await Promise.all([
-            fetchHA(`history/period/${midnightISO}?filter=${SENSORS.water.total}`),
+            fetchHA(`history/period/${midnightISO}?filter=${SENSORS.water.total}&end_time=${endISO}`),
             getHistory(SENSORS.water.total, period)
         ]);
 
