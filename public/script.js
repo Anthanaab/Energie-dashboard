@@ -529,11 +529,11 @@ const fetchAllData = async () => {
 
         currentData.periodHP = historyDeltaWithResets(hpHistory);
         currentData.periodHC = historyDeltaWithResets(hcHistory);
-        // Surplus calculé à partir du bilan énergétique (production + import - conso)
-        // plutôt que du capteur Ecojoko dont l'historique est peu fiable
-        currentData.periodSurplus = Math.max(0,
-            currentData.periodProduction + currentData.periodHP + currentData.periodHC - currentData.periodConsumption
-        );
+        // Surplus = ce qui est réinjecté sur le réseau
+        // Le capteur Enphase lifetime_net_energy_consumption mesure le net (import - export)
+        // Donc : surplus = (HP + HC) - net_Enphase = export total
+        // Si net_Enphase < 0 (plus d'export que d'import), surplus > (HP + HC)
+        currentData.periodSurplus = Math.max(0, currentData.periodHP + currentData.periodHC - currentData.periodConsumption);
         currentData.periodProduction = historyDelta(productionHistory) * 1000;
         currentData.periodConsumption = historyDelta(consumptionHistory) * 1000;
 
