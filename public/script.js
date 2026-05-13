@@ -398,23 +398,12 @@ const historyCumulative = (history) => {
 // ===== Fetch Water Data =====
 const fetchWaterData = async (period) => {
     try {
-        const now = new Date();
-        const endISO = toLocalISO(now);
-
-        // Today : l'état courant = conso depuis minuit (le capteur reset à 00:00)
-        const [waterState, periodHistory] = await Promise.all([
-            fetchHA(`states/${SENSORS.water.total}`),
-            getHistory(SENSORS.water.total, period)
-        ]);
+        const periodHistory = await getHistory(SENSORS.water.total, period);
 
         const toM3 = (liters) => liters / 1000;
 
-        // Conso du jour = valeur actuelle du capteur (reset à minuit → état = total du jour)
-        const waterTodayL = waterState ? Math.max(0, parseFloat(waterState.state) || 0) : 0;
-
-        // Période : utilise historyDeltaWithResets (gère les remises à zéro quotidiennes)
+        // Période : delta total avec gestion des resets (historyDeltaWithResets)
         const waterPeriodL = historyDeltaWithResets(periodHistory);
-        const waterPeriod = toM3(waterPeriodL);
 
         // Graphique : accumulation cumulée avec gestion des resets
         const { values: chartValues, labels: chartLabels } = historyCumulative(periodHistory);
@@ -425,12 +414,11 @@ const fetchWaterData = async (period) => {
 
         // Heure/24h → L, 7j/30j → m³
         const useLiters = period === 'hour' || period === 'day';
-        const waterDisplayL = period === 'day' ? waterTodayL : waterPeriodL;
-        const waterVal = useLiters ? waterDisplayL : toM3(waterDisplayL);
-        const waterCost = toM3(waterDisplayL) * HA_CONFIG.priceWater;
+        const waterVal = useLiters ? waterPeriodL : toM3(waterPeriodL);
+        const waterCost = toM3(waterPeriodL) * HA_CONFIG.priceWater;
         const waterUnit = useLiters ? 'L' : 'm³';
 
-        elements.waterToday.textContent = useLiters ? formatNumber(waterDisplayL, 0) : formatNumber(waterVal, 3);
+        elements.waterToday.textContent = useLiters ? formatNumber(waterPeriodL, 0) : formatNumber(waterVal, 3);
         document.getElementById('water-unit').textContent = waterUnit;
         elements.waterCostToday.textContent = formatNumber(waterCost, 2);
 
