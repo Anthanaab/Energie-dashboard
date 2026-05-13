@@ -165,9 +165,15 @@ const toLocalISO = (date) => {
 const safeDelta = (history) => {
     const valid = history.filter(h => !isNaN(parseFloat(h.state)));
     if (valid.length < 2) return 0;
-    const first = parseFloat(valid[0].state);
-    const allSame = valid.every(h => Math.abs(parseFloat(h.state) - first) < 0.0005);
-    if (allSame) return 0;
+
+    const values = valid.map(h => parseFloat(h.state));
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    // Si toutes les valeurs sont identiques (tolérance 0.01 kWh), pas de delta
+    if (max - min < 0.01) return 0;
+
+    // Sinon, utiliser historyDeltaWithResets qui gère les remises à zéro
     return historyDeltaWithResets(history);
 };
 
