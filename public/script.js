@@ -546,6 +546,19 @@ const fetchAllData = async () => {
         currentData.periodHP = historyDeltaWithResets(hpHistory);
         currentData.periodHC = historyDeltaWithResets(hcHistory);
         currentData.periodSurplus = safeDelta(surplusHistory);
+
+        // DEBUG surplus 1h
+        if (period === 'hour') {
+            console.warn('=== DEBUG surplus hour ===');
+            console.warn('surplusHistory raw:', JSON.stringify(surplusHistory));
+            console.warn('surplusHistory length:', surplusHistory.length);
+            if (surplusHistory.length >= 2) {
+                const v = surplusHistory.map(h => parseFloat(h.state)).filter(v => !isNaN(v));
+                console.warn('values:', v);
+                console.warn('min:', Math.min(...v), 'max:', Math.max(...v));
+            }
+            console.warn('safeDelta result:', currentData.periodSurplus);
+        }
         currentData.periodProduction = historyDelta(productionHistory) * 1000;
         currentData.periodConsumption = historyDelta(consumptionHistory) * 1000;
 
