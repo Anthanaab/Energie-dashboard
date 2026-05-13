@@ -161,7 +161,7 @@ const toLocalISO = (date) => {
     return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
 };
 
-// historyDeltaWithResets avec détection de valeurs constantes (évite les faux deltas)
+// historyDeltaWithResets avec protection valeurs négatives et constantes
 const safeDelta = (history) => {
     const valid = history.filter(h => !isNaN(parseFloat(h.state)));
     if (valid.length < 2) return 0;
@@ -173,8 +173,13 @@ const safeDelta = (history) => {
     // Si toutes les valeurs sont identiques (tolérance 0.01 kWh), pas de delta
     if (max - min < 0.01) return 0;
 
-    // Sinon, utiliser historyDeltaWithResets qui gère les remises à zéro
-    return historyDeltaWithResets(history);
+    // Clippe les valeurs négatives à 0 : un surplus négatif = conso réseau, pas d'injection
+    const clipped = valid.map(h => ({
+        ...h,
+        state: String(Math.max(0, parseFloat(h.state)))
+    }));
+
+    return historyDeltaWithResets(clipped);
 };
 
 const getTrendEmoji = (value, previousValue) => {
@@ -546,19 +551,6 @@ const fetchAllData = async () => {
         currentData.periodHP = historyDeltaWithResets(hpHistory);
         currentData.periodHC = historyDeltaWithResets(hcHistory);
         currentData.periodSurplus = safeDelta(surplusHistory);
-
-        // DEBUG surplus 1h
-        if (period === 'hour') {
-            console.warn('=== DEBUG surplus hour ===');
-            console.warn('surplusHistory raw:', JSON.stringify(surplusHistory));
-            console.warn('surplusHistory length:', surplusHistory.length);
-            if (surplusHistory.length >= 2) {
-                const v = surplusHistory.map(h => parseFloat(h.state)).filter(v => !isNaN(v));
-                console.warn('values:', v);
-                console.warn('min:', Math.min(...v), 'max:', Math.max(...v));
-            }
-            console.warn('safeDelta result:', currentData.periodSurplus);
-        }
         currentData.periodProduction = historyDelta(productionHistory) * 1000;
         currentData.periodConsumption = historyDelta(consumptionHistory) * 1000;
 
