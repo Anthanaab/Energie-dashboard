@@ -70,11 +70,9 @@ Sensor definitions are in `server.js` (the `/api/all-energy-data` endpoint) and 
   - `sensor.envoy_122303081421_lifetime_net_energy_production` = total solar produced, in MWh
 - **Ecojoko HP/HC/surplus sensors reset daily at midnight** → use `historyDeltaWithResets()` to sum across resets for multi-day periods
 - **HA history API defaults to 24h** without `end_time` param → always pass `end_time=now` in history calls
-- **Ecojoko `sensor.ecojoko_consommation_temps_reel`** (current power W) can go negative during solar export → clip with `Math.max(0, v)`
-- **Ecojoko `sensor.ecojoko_surplus_de_production`** (kWh, total_increasing) can go negative at night.
-  L'historique de ce capteur n'est pas fiable pour le calcul du surplus période.
-  → Le surplus est **calculé** côté frontend : `surplus = HP + HC − periodConsumption`
-  (HP+HC = import réseau Ecojoko, periodConsumption = net Enphase = import − export)
+- **Ecojoko `sensor.ecojoko_consommation_temps_reel`** (current power W) can go negative during solar export → displayed raw (negative values shown on the "Puissance Actuelle" card and power chart)
+- **Ecojoko `sensor.ecojoko_surplus_de_production`** (kWh, total_increasing) can go negative at night and resets daily at midnight.
+  → Uses `historyDeltaWithResetsAbs()` to handle negative values + daily resets for multi-day periods
 
 ## History helper functions
 
@@ -82,8 +80,15 @@ Sensor definitions are in `server.js` (the `/api/all-energy-data` endpoint) and 
 // Simple delta: last - first (for monotonically increasing sensors like Enphase lifetime)
 historyDelta(history)
 
-// Reset-aware delta: sums segments across daily resets (for HP, HC, surplus)
+// Same but allows negative delta (for Enphase net consumption which decreases when exporting)
+historyDeltaSigned(history)
+
+// Reset-aware delta: sums segments across daily resets (for HP, HC)
 historyDeltaWithResets(history)
+
+// Reset-aware delta for negative sensors: converts to absolute values before summing segments
+// Use for Ecojoko surplus sensor which sends negative values and resets daily at midnight
+historyDeltaWithResetsAbs(history)
 
 // Fetch history for a given period ('hour'|'day'|'week'|'month')
 // Always passes end_time=now to avoid HA's 24h default cap
@@ -102,19 +107,14 @@ autosuffisance     = selfConsumed / (HP + HC + selfConsumed) × 100  (% de la co
 
 ### Surplus calculation
 
-Le surplus n'est **pas** lu depuis `sensor.ecojoko_surplus_de_production` (historique peu fiable).
-Il est **calculé** à partir du bilan Enphase + Ecojoko :
-
-```
-surplus = HP + HC − periodConsumption
-```
-
-Où `periodConsumption` = delta du capteur `lifetime_net_energy_consumption` (Enphase, en MWh × 1000).
-Quand le net Enphase est négatif (export > import), le surplus dépasse (HP+HC).
+Le surplus est lu directement depuis `sensor.ecojoko_surplus_de_production` via `historyDeltaWithResetsAbs()`.
+Ce capteur envoie des valeurs négatives et se remet à zéro à minuit chaque jour.
+La fonction `historyDeltaWithResetsAbs()` convertit chaque valeur en absolu avant de sommer les segments,
+ce qui permet d'obtenir un delta correct sur toutes les périodes (1h, 24h, 7j, 30j).
 
 ## UI layout (Énergie tab)
 
-**Stat cards (top):** Puissance Actuelle | Réseau HP+HC + coût | Production + revente surplus | Conso. Maison
+**Stat cards (top):** Puissance Actuelle (raw, can be negative during solar export) | Réseau HP+HC + coût | Production + revente surplus | Conso. Maison
 
 **Detail cards (bottom):** Heures Pleines | Heures Creuses | Pic de Puissance | Auto-consommation | Autosuffisance
 
