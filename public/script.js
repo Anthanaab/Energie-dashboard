@@ -139,6 +139,13 @@ const historyDelta = (history) => {
     return Math.max(0, parseFloat(valid[valid.length - 1].state) - parseFloat(valid[0].state));
 };
 
+// Même chose mais autorise les valeurs négatives (ex: net Enphase qui diminue quand export > import)
+const historyDeltaSigned = (history) => {
+    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
+    if (valid.length < 2) return 0;
+    return parseFloat(valid[valid.length - 1].state) - parseFloat(valid[0].state);
+};
+
 // Pour les capteurs qui se remettent à zéro (HP/HC journaliers)
 const historyDeltaWithResets = (history) => {
     const valid = history.filter(h => !isNaN(parseFloat(h.state)));
@@ -530,7 +537,7 @@ const fetchAllData = async () => {
         currentData.periodHP = historyDeltaWithResets(hpHistory);
         currentData.periodHC = historyDeltaWithResets(hcHistory);
         currentData.periodProduction = historyDelta(productionHistory) * 1000;
-        currentData.periodConsumption = historyDelta(consumptionHistory) * 1000;
+        currentData.periodConsumption = historyDeltaSigned(consumptionHistory) * 1000;
         // Surplus = ce qui est réinjecté sur le réseau
         // Le capteur Enphase lifetime_net_energy_consumption mesure le net (import - export)
         // Donc : surplus = (HP + HC) - net_Enphase = export total
