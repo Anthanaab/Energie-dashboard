@@ -71,6 +71,25 @@ app.get('/api/history/period/:startTime', async (req, res) => {
     }
 });
 
+// GET /api/history/statistics_during_period - HA long-term statistics (for long periods)
+app.get('/api/history/statistics_during_period', async (req, res) => {
+    try {
+        const { start_time, end_time, statistic_ids, period } = req.query;
+
+        const params = {};
+        if (start_time) params.start_time = start_time;
+        if (end_time) params.end_time = end_time;
+        if (statistic_ids) params.statistic_ids = statistic_ids;
+        if (period) params.period = period;
+        
+        const response = await haClient.get('/history/statistics_during_period', { params });
+        res.json(response.data);
+    } catch (error) {
+        console.error('Error fetching statistics:', error.message);
+        res.status(500).json({ error: 'Failed to fetch statistics' });
+    }
+});
+
 // GET /api/states - Get multiple states
 app.get('/api/states', async (req, res) => {
     try {

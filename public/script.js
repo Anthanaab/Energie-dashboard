@@ -419,24 +419,61 @@ const historyCumulative = (history) => {
     };
 };
 
+// ===== Fetch Water Statistics (for long periods) =====
+const getWaterStatistics = async (period) => {
+    const now = new Date();
+    let startTime;
+    switch (period) {
+        case 'week': startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+        case 'month': startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+        default: startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    }
+    const startISO = toLocalISO(startTime);
+    const endISO = toLocalISO(now);
+
+    const data = await fetchHA(`history/statistics_during_period?start_time=${startISO}&end_time=${endISO}&statistic_ids=${SENSORS.water.total}&period=day`);
+    if (!data || !data[SENSORS.water.total]) return { total: 0, daily: [] };
+
+    const stats = data[SENSORS.water.total];
+    const daily = stats.map(s => ({
+        date: new Date(s.start).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+        sum: s.sum || 0
+    }));
+
+    const total = daily.reduce((acc, d) => acc + d.sum, 0);
+    return { total, daily };
+};
+
 // ===== Fetch Water Data =====
 const fetchWaterData = async (period) => {
     try {
-        const periodHistory = await getHistory(SENSORS.water.total, period);
-
         const toM3 = (liters) => liters / 1000;
-
-        // Période : delta total avec gestion des resets (historyDeltaWithResets)
-        const waterPeriodL = historyDeltaWithResets(periodHistory);
-
-        // Graphique : accumulation cumulée avec gestion des resets
-        const { values: chartValues, labels: chartLabels } = historyCumulative(periodHistory);
-
         const lbl = PERIOD_LABELS[period];
         elements.labelWater.textContent = `Conso Eau ${lbl}`;
         elements.labelWaterCost.textContent = `Coût Eau ${lbl}`;
 
-        // Heure/24h → L, 7j/30j → m³
+        // Pour 7j/30j, utiliser les statistiques HA (long-term) au lieu de l'historique brut
+        if (period === 'week' || period === 'month') {
+            const { total, daily } = await getWaterStatistics(period);
+            const waterCost = toM3(total) * HA_CONFIG.priceWater;
+
+            elements.waterToday.textContent = formatNumber(toM3(total), 3);
+            document.getElementById('water-unit').textContent = 'm³';
+            elements.waterCostToday.textContent = formatNumber(waterCost, 2);
+
+            if (waterChart) {
+                waterChart.data.labels = daily.map(d => d.date);
+                waterChart.data.datasets[0].data = daily.map(d => toM3(d.sum));
+                waterChart.update('smooth');
+            }
+            return;
+        }
+
+        // Heure/24h : historique brut (recorder keep_days suffisant)
+        const periodHistory = await getHistory(SENSORS.water.total, period);
+        const waterPeriodL = historyDeltaWithResets(periodHistory);
+        const { values: chartValues, labels: chartLabels } = historyCumulative(periodHistory);
+
         const useLiters = period === 'hour' || period === 'day';
         const waterVal = useLiters ? waterPeriodL : toM3(waterPeriodL);
         const waterCost = toM3(waterPeriodL) * HA_CONFIG.priceWater;
