@@ -74,7 +74,13 @@ Sensor definitions are in `server.js` (the `/api/all-energy-data` endpoint) and 
 - **Ecojoko `sensor.ecojoko_surplus_de_production`** (kWh, total_increasing) can go negative at night and resets daily at midnight.
   → Uses `historyDeltaWithResetsAbs()` to handle negative values + daily resets for multi-day periods
 - **Water `sensor.consommation_eau_totale`** resets daily at midnight. Uses `historyDeltaWithResets()` for period calculation.
-  ⚠️ **Limitation:** For 7j/30j periods, if HA's recorder purges data (default ~7-10 days), the calculated delta will be incomplete. To fix, increase `purge_keep_days` in `configuration.yaml` or use a long-term statistics compatible sensor in HA.
+  ⚠️ **Limitation:** For 7j/30j periods, if HA's recorder purges data (default ~7-10 days), the calculated delta will be incomplete.
+  **Fix:** Increase `purge_keep_days` in `configuration.yaml`:
+  ```yaml
+  recorder:
+    purge_keep_days: 30
+  ```
+  Then restart HA. Wait 24-48h for full 30-day data to accumulate.
 
 ## History helper functions
 
