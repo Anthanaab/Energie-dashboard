@@ -452,27 +452,30 @@ const fetchWaterData = async (period) => {
         elements.labelWater.textContent = `Conso Eau ${lbl}`;
         elements.labelWaterCost.textContent = `Coût Eau ${lbl}`;
 
-        // Pour 7j/30j, utiliser les statistiques HA (long-term) au lieu de l'historique brut
+        // Pour 7j/30j, essayer statistiques HA (long-term) puis fallback historique brut
+        let waterPeriodL = 0;
+        let chartValues = [];
+        let chartLabels = [];
+
         if (period === 'week' || period === 'month') {
             const { total, daily } = await getWaterStatistics(period);
-            const waterCost = toM3(total) * HA_CONFIG.priceWater;
-
-            elements.waterToday.textContent = formatNumber(toM3(total), 3);
-            document.getElementById('water-unit').textContent = 'm³';
-            elements.waterCostToday.textContent = formatNumber(waterCost, 2);
-
-            if (waterChart) {
-                waterChart.data.labels = daily.map(d => d.date);
-                waterChart.data.datasets[0].data = daily.map(d => toM3(d.sum));
-                waterChart.update('smooth');
+            console.log('Water stats result:', { total, daily });
+            if (total > 0 && daily.length > 0) {
+                waterPeriodL = total;
+                chartLabels = daily.map(d => d.date);
+                chartValues = daily.map(d => d.sum);
             }
-            return;
         }
 
-        // Heure/24h : historique brut (recorder keep_days suffisant)
-        const periodHistory = await getHistory(SENSORS.water.total, period);
-        const waterPeriodL = historyDeltaWithResets(periodHistory);
-        const { values: chartValues, labels: chartLabels } = historyCumulative(periodHistory);
+        // Fallback: si stats vides ou pour 1h/24h, utiliser historique brut
+        if (waterPeriodL === 0) {
+            const periodHistory = await getHistory(SENSORS.water.total, period);
+            console.log('Water raw history length:', periodHistory.length);
+            waterPeriodL = historyDeltaWithResets(periodHistory);
+            const cumul = historyCumulative(periodHistory);
+            chartValues = cumul.values;
+            chartLabels = cumul.labels;
+        }
 
         const useLiters = period === 'hour' || period === 'day';
         const waterVal = useLiters ? waterPeriodL : toM3(waterPeriodL);
