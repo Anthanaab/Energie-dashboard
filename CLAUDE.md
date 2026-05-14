@@ -73,7 +73,8 @@ Sensor definitions are in `server.js` (the `/api/all-energy-data` endpoint) and 
 - **Ecojoko `sensor.ecojoko_consommation_temps_reel`** (current power W) can go negative during solar export → displayed raw (negative values shown on the "Puissance Actuelle" card and power chart)
 - **Ecojoko `sensor.ecojoko_surplus_de_production`** (kWh, total_increasing) can go negative at night and resets daily at midnight.
   → Uses `historyDeltaWithResetsAbs()` to handle negative values + daily resets for multi-day periods
-- **Water `sensor.consommation_eau_totale`** resets daily at midnight. For **7j/30j periods**, the raw history API may be truncated by HA's recorder purge → uses HA **long-term statistics API** (`/api/history/statistics_during_period?period=day`) instead. For 1h/24h, raw history is used.
+- **Water `sensor.consommation_eau_totale`** resets daily at midnight. Uses `historyDeltaWithResets()` for period calculation.
+  ⚠️ **Limitation:** For 7j/30j periods, if HA's recorder purges data (default ~7-10 days), the calculated delta will be incomplete. To fix, increase `purge_keep_days` in `configuration.yaml` or use a long-term statistics compatible sensor in HA.
 
 ## History helper functions
 
