@@ -163,6 +163,23 @@ const historyDeltaWithResets = (history) => {
     return Math.max(0, total + parseFloat(valid[valid.length - 1].state) - segStart);
 };
 
+// Pour les capteurs négatifs qui se remettent à zéro (ex: surplus Ecojoko)
+const historyDeltaWithResetsAbs = (history) => {
+    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
+    if (valid.length < 2) return 0;
+    let total = 0;
+    let segStart = Math.abs(parseFloat(valid[0].state));
+    for (let i = 1; i < valid.length; i++) {
+        const curr = Math.abs(parseFloat(valid[i].state));
+        const prev = Math.abs(parseFloat(valid[i - 1].state));
+        if (curr < prev) {
+            total += prev - segStart;
+            segStart = curr;
+        }
+    }
+    return Math.max(0, total + Math.abs(parseFloat(valid[valid.length - 1].state)) - segStart);
+};
+
 const toLocalISO = (date) => {
     const p = n => String(n).padStart(2, '0');
     return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
@@ -538,8 +555,8 @@ const fetchAllData = async () => {
         currentData.periodHC = historyDeltaWithResets(hcHistory);
         currentData.periodProduction = historyDelta(productionHistory) * 1000;
         currentData.periodConsumption = historyDeltaSigned(consumptionHistory) * 1000;
-        // Surplus = réinjection réseau (capteur Ecojoko direct)
-        currentData.periodSurplus = Math.max(0, historyDelta(surplusHistory));
+        // Surplus = réinjection réseau (capteur Ecojoko direct, valeurs négatives, reset journalier)
+        currentData.periodSurplus = historyDeltaWithResetsAbs(surplusHistory);
 
         // Update UI
         updateUI();
