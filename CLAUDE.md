@@ -38,7 +38,7 @@ energie-dashboard/
 
 **Batch endpoint:** The frontend primarily uses `/api/all-energy-data?period=X` which returns all current states, device data (with period energy deltas), and history in a single call (~33 individual calls → 1).
 
-**Configuration:** `HA_URL` and `HA_TOKEN` are required environment variables. `docker-compose.yml` a des valeurs par défaut (via `${VAR:-default}`) donc fonctionne sans config Portainer. `public/script.js` holds `HA_CONFIG` with pricing only:
+**Configuration:** `HA_URL` and `HA_TOKEN` are required environment variables — no hardcoded fallback. `server.js` exits at startup if either is missing. `public/script.js` holds `HA_CONFIG` with pricing only:
 ```js
 const HA_CONFIG = {
     priceHP: 0.1876,    // €/kWh heures pleines
@@ -70,7 +70,7 @@ Sensor definitions are in `server.js` (the `/api/all-energy-data` endpoint) and 
   - `sensor.envoy_122303081421_lifetime_net_energy_production` = total solar produced, in MWh
 - **Ecojoko HP/HC/surplus sensors reset daily at midnight** → use `historyDeltaWithResets()` to sum across resets for multi-day periods
 - **HA history API defaults to 24h** without `end_time` param → always pass `end_time=now` in history calls
-- **Ecojoko `sensor.ecojoko_consommation_temps_reel`** (current power W) can go negative during solar export → displayed raw (negative values shown on the "Puissance Actuelle" card and power chart)
+- **Ecojoko `sensor.ecojoko_consommation_temps_reel`** (current power W) can go negative during solar export → clipped to 0 on the "Puissance Actuelle" card with `Math.max(0, v)`
 - **Ecojoko `sensor.ecojoko_surplus_de_production`** (kWh, total_increasing) can go negative at night and resets daily at midnight.
   → Uses `historyDeltaWithResetsAbs()` to handle negative values + daily resets for multi-day periods
 - **Water `sensor.consommation_eau_totale`** resets daily at midnight. Uses `historyDeltaWithResets()` for period calculation.
@@ -129,14 +129,29 @@ ce qui permet d'obtenir un delta correct sur toutes les périodes (1h, 24h, 7j, 
 ## Deployment (Production)
 
 ### Infrastructure
-- **Git:** Gitea local → `http://10.20.0.29:3000/antha/energie-dashboard.git` (branch: `master`)
+- **Git:** Gitea local → `http://192.168.50.15:3000/antha/energie-dashboard.git` (branch: `master`)
 - **Docker host:** `192.168.50.69` managed via Portainer → `https://192.168.50.69:9443`
 - **Stack name:** `energie-dashboard` — deployed via Portainer Repository mode
 - **URL prod:** `http://192.168.50.69:3000`
 
 ### Config Docker
-- `HA_URL` et `HA_TOKEN` passés en variables d'environnement dans `docker-compose.yml`
-- `server.js` lit `process.env.HA_URL` et `process.env.HA_TOKEN` (pas de fallback — plantage si absents)
+- `docker-compose.yml` utilise `${HA_URL}` et `${HA_TOKEN}` (sans fallback)
+- Les valeurs sont à saisir dans **Portainer → Stacks → energie-dashboard → Environment variables**
+- `server.js` plante au démarrage si l'une des deux variables est absente
+- Le token ne doit jamais être committé dans le code
+
+### Développement local (sans Docker)
+Créer un fichier `.env` à la racine (déjà dans `.gitignore`), voir `.env.example` :
+```
+HA_URL=http://192.168.40.214:8123
+HA_TOKEN=<ton token>
+```
+
+```bash
+cd energie-dashboard
+npm install
+npm run dev   # nodemon, port 3000
+```
 
 ### Workflow de mise à jour
 ```powershell
@@ -146,11 +161,4 @@ git commit -m "description du changement"
 git push
 
 # 2. Dans Portainer → Stacks → energie-dashboard → Pull and redeploy
-```
-
-### Développement local (sans Docker)
-```bash
-cd energie-dashboard
-npm install
-npm run dev   # nodemon, port 3000
 ```

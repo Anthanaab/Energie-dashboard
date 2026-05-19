@@ -185,12 +185,6 @@ const toLocalISO = (date) => {
     return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
 };
 
-const getTrendEmoji = (value, previousValue) => {
-    if (previousValue === null) return '';
-    if (value > previousValue) return '↑';
-    if (value < previousValue) return '↓';
-    return '';
-};
 
 // ===== Chart Setup =====
 const initCharts = () => {
@@ -517,7 +511,7 @@ const fetchAllData = async () => {
 
         // --- Current states ---
         const m = data.main;
-        currentData.currentPower = m[SENSORS.entities.currentPower] || 0;
+        currentData.currentPower = Math.max(0, m[SENSORS.entities.currentPower] || 0);
         currentData.surplus = Math.max(0, m[SENSORS.entities.surplus] || 0);
         currentData.productionToday = m[SENSORS.entities.productionToday] || 0;
         currentData.todayConsumption = (m[SENSORS.entities.hp] || 0) + (m[SENSORS.entities.hc] || 0);

@@ -7,5 +7,5 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - HA_URL=${HA_URL:-http://192.168.40.214:8123}
-      - HA_TOKEN=${HA_TOKEN:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmMjViZmUwNDVmZGQ0NzZjYTZkN2VkYWZlMWNmOWYwNyIsImlhdCI6MTc3ODYyOTU1NywiZXhwIjoyMDkzOTg5NTU3fQ.-ANKKPI53F6MKOfJawXRe8RJRPox_a-suytn8vvKSJQ}
+      - HA_URL=${HA_URL}
+      - HA_TOKEN=${HA_TOKEN}

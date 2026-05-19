@@ -35,7 +35,8 @@ const haClient = axios.create({
     headers: {
         'Authorization': `Bearer ${HA_CONFIG.token}`,
         'Content-Type': 'application/json'
-    }
+    },
+    timeout: 5000
 });
 
 // ===== Proxy Endpoints =====
