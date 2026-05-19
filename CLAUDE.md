@@ -122,9 +122,18 @@ ce qui permet d'obtenir un delta correct sur toutes les périodes (1h, 24h, 7j, 
 
 ## UI layout (Énergie tab)
 
-**Stat cards (top):** Puissance Actuelle (raw, can be negative during solar export) | Réseau HP+HC + coût | Production + revente surplus | Conso. Maison
+**Stat cards (top):** Puissance Actuelle | Réseau HP+HC + coût | Production + revente surplus | Conso. Maison
 
 **Detail cards (bottom):** Heures Pleines | Heures Creuses | Pic de Puissance | Auto-consommation | Autosuffisance
+
+### Puissance Actuelle card
+- Affiche la valeur absolue du capteur `ecojoko_consommation_temps_reel`
+- Badge vert `↑ export` visible quand la valeur est négative (export solaire vers le réseau)
+- La carte passe en thème vert (fond + glow) en mode export via la classe CSS `.exporting`
+
+### Conso. Maison
+- Calculé comme `HP + HC + selfConsumed` (selfConsumed = production − surplus injecté)
+- **Ne pas utiliser** le net Enphase (`lifetime_net_energy_consumption`) pour cette valeur — il mesure import−export et peut être négatif ou sous-estimer la conso réelle lors d'export important
 
 ## Deployment (Production)
 
