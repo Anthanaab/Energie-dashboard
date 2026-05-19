@@ -220,6 +220,16 @@ body {
 .stat-card.featured {
     background: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(16, 185, 129, 0.1));
     border-color: var(--primary);
+    transition: background 0.5s ease, border-color 0.5s ease;
+}
+
+.stat-card.featured.exporting {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.1));
+    border-color: var(--secondary);
+}
+
+.stat-card.featured.exporting .stat-glow {
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, transparent 70%);
 }
 
 .stat-card.total-card {

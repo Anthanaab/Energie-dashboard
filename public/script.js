@@ -66,7 +66,7 @@ const elements = {
     labelTotal: document.getElementById('label-total'),
     labelWater: document.getElementById('label-water'),
     labelWaterCost: document.getElementById('label-water-cost'),
-    surplusPower: document.getElementById('surplus-power'),
+
     waterToday: document.getElementById('water-today'),
     waterCostToday: document.getElementById('water-cost-today'),
     hpValue: document.getElementById('hp-value'),
@@ -585,9 +585,10 @@ const updateUI = () => {
     elements.currentPower.textContent = formatNumber(Math.abs(currentData.currentPower), 0);
     const badge = document.getElementById('power-export-badge');
     if (badge) badge.style.display = isExporting ? 'inline-block' : 'none';
+    document.querySelector('.stat-card.featured').classList.toggle('exporting', isExporting);
+
     elements.todayConsumption.textContent = formatNumber(showNetConsumption, 2);
     elements.todayProduction.textContent = formatNumber(showProduction, 2);
-    elements.totalConsumption.textContent = formatNumber(showConsumption, 1);
 
     // Coût réseau
     const cost = showHP * HA_CONFIG.priceHP + showHC * HA_CONFIG.priceHC;
@@ -608,11 +609,12 @@ const updateUI = () => {
     const peakPower = validPowers.length > 0 ? Math.max(...validPowers) : 0;
     elements.peakPower.textContent = formatNumber(peakPower, 0);
 
-    // Auto-consommation : production utilisée localement = prod − surplus injecté réseau
-    // Autosuffisance : % de la conso totale couverte par le solaire
+    // Conso. Maison = réseau (HP+HC) + auto-consommation solaire
+    // Plus précis que le net Enphase qui peut être négatif lors d'export important
     const periodSurplus = currentData.periodSurplus || 0;
     const selfConsumed = Math.max(0, showProduction - periodSurplus);
     const totalLoad = showNetConsumption + selfConsumed;
+    elements.totalConsumption.textContent = formatNumber(totalLoad, 1);
 
     const selfConsumptionPct = showProduction > 0
         ? Math.min(100, (selfConsumed / showProduction) * 100)
