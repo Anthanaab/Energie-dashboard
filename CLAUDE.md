@@ -70,7 +70,7 @@ Sensor definitions are in `server.js` (the `/api/all-energy-data` endpoint) and 
   - `sensor.envoy_122303081421_lifetime_net_energy_production` = total solar produced, in MWh
 - **Ecojoko HP/HC/surplus sensors reset daily at midnight** → use `historyDeltaWithResets()` to sum across resets for multi-day periods
 - **HA history API defaults to 24h** without `end_time` param → always pass `end_time=now` in history calls
-- **Ecojoko `sensor.ecojoko_consommation_temps_reel`** (current power W) can go negative during solar export → clipped to 0 on the "Puissance Actuelle" card with `Math.max(0, v)`
+- **Ecojoko `sensor.ecojoko_consommation_temps_reel`** (current power W) can go negative during solar export → displayed raw (negative = export en cours), do NOT clip to 0
 - **Ecojoko `sensor.ecojoko_surplus_de_production`** (kWh, total_increasing) can go negative at night and resets daily at midnight.
   → Uses `historyDeltaWithResetsAbs()` to handle negative values + daily resets for multi-day periods
 - **Water `sensor.consommation_eau_totale`** resets daily at midnight. Uses `historyDeltaWithResets()` for period calculation.

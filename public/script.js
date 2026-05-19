@@ -511,7 +511,7 @@ const fetchAllData = async () => {
 
         // --- Current states ---
         const m = data.main;
-        currentData.currentPower = Math.max(0, m[SENSORS.entities.currentPower] || 0);
+        currentData.currentPower = m[SENSORS.entities.currentPower] ?? 0;
         currentData.surplus = Math.max(0, m[SENSORS.entities.surplus] || 0);
         currentData.productionToday = m[SENSORS.entities.productionToday] || 0;
         currentData.todayConsumption = (m[SENSORS.entities.hp] || 0) + (m[SENSORS.entities.hc] || 0);
