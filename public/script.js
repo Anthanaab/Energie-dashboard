@@ -581,7 +581,10 @@ const updateUI = () => {
     const showConsumption = currentData.periodConsumption;
     const showNetConsumption = showHP + showHC;
 
-    elements.currentPower.textContent = formatNumber(currentData.currentPower, 0);
+    const isExporting = currentData.currentPower < 0;
+    elements.currentPower.textContent = formatNumber(Math.abs(currentData.currentPower), 0);
+    const badge = document.getElementById('power-export-badge');
+    if (badge) badge.style.display = isExporting ? 'inline-block' : 'none';
     elements.todayConsumption.textContent = formatNumber(showNetConsumption, 2);
     elements.todayProduction.textContent = formatNumber(showProduction, 2);
     elements.totalConsumption.textContent = formatNumber(showConsumption, 1);
