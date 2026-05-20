@@ -84,6 +84,8 @@ Sensor definitions are in `server.js` (the `/api/all-energy-data` endpoint) and 
 
 ## History helper functions
 
+Disponibles dans `script.js` (frontend) et sous forme `_hist*` dans `server.js` (pour les calculs côté serveur) :
+
 ```js
 // Simple delta: last - first (for monotonically increasing sensors like Enphase lifetime)
 historyDelta(history)
@@ -102,6 +104,8 @@ historyDeltaWithResetsAbs(history)
 // Always passes end_time=now to avoid HA's 24h default cap
 getHistory(entityId, period)
 ```
+
+Les mêmes fonctions existent côté serveur sous les noms `_histDelta`, `_histDeltaWithResets`, `_histDeltaWithResetsAbs` — utilisées pour calculer les deltas de la période précédente dans `/api/all-energy-data`.
 
 ## Auto-consumption & self-sufficiency
 
@@ -122,18 +126,50 @@ ce qui permet d'obtenir un delta correct sur toutes les périodes (1h, 24h, 7j, 
 
 ## UI layout (Énergie tab)
 
-**Stat cards (top):** Puissance Actuelle | Réseau HP+HC + coût | Production + revente surplus | Conso. Maison
+**Widget météo (haut):** Conditions Pirate Weather depuis HA — icône, temp, ressenti, vent, humidité, indice UV
 
-**Detail cards (bottom):** Heures Pleines | Heures Creuses | Pic de Puissance | Auto-consommation | Autosuffisance
+**Stat cards (top):** Puissance Actuelle | Réseau HP+HC + coût + badge comparaison | Production + revente + badge comparaison | Conso. Maison
+
+**Charts:** Consommation & Production (line) | Puissance Instantanée (line) | Mix Énergétique (donut HP/HC/Solaire)
+
+**Top Consommateurs:** énergie kWh + puissance W live par appareil — bouton export CSV
+
+**Detail cards (bottom):** Heures Pleines | Heures Creuses | Pic de Puissance | Auto-consommation | Autosuffisance | Bilan Net € | CO₂ Évité
 
 ### Puissance Actuelle card
 - Affiche la valeur absolue du capteur `ecojoko_consommation_temps_reel`
 - Badge vert `↑ export` visible quand la valeur est négative (export solaire vers le réseau)
-- La carte passe en thème vert (fond + glow) en mode export via la classe CSS `.exporting`
+- La carte passe en thème vert (`.exporting`), jaune (`.warning`), ou rouge (`.danger`) selon le seuil configurable
+- **Seuil d'alerte :** input `⚡ W` dans le header — sauvegardé dans `localStorage`. Jaune > seuil, rouge > seuil × 1,6
 
 ### Conso. Maison
 - Calculé comme `HP + HC + selfConsumed` (selfConsumed = production − surplus injecté)
 - **Ne pas utiliser** le net Enphase (`lifetime_net_energy_consumption`) pour cette valeur — il mesure import−export et peut être négatif ou sous-estimer la conso réelle lors d'export important
+
+### Bilan Net
+- `revente surplus − coût réseau (HP+HC)` — vert si positif, rouge si négatif
+
+### CO₂ Évité
+- `production (kWh) × 0,052 kg/kWh` (facteur moyen réseau français RTE)
+
+### Comparaison période précédente
+- Badges `↑/↓ X% vs préc.` sur les cartes HP+HC et Production
+- Le serveur calcule les deltas de la période précédente (même durée, décalée) dans `/api/all-energy-data` et les retourne dans `prev: { hp, hc, production, surplus }`
+
+### Mix Énergétique (donut)
+- Affiche la composition de la consommation maison : Réseau HP / Réseau HC / Solaire autoconsommé
+- Mis à jour à chaque refresh via `updateMixChart()`
+
+### Widget Météo
+- Entité HA : `weather.pirateweather` (configurable via `WEATHER_ENTITY` dans `.env`)
+- Rafraîchi toutes les 10 minutes, indépendamment du refresh énergie
+- Affiche : condition, température, ressenti, vent, humidité, barre indice UV
+- Mapping conditions HA → emoji dans `haConditionToInfo()` (script.js)
+
+### Export CSV
+- Bouton `⬇ CSV` dans la section Top Consommateurs
+- Exporte : résumé période (HP, HC, production, surplus, conso maison, coût, revente, CO₂) + tableau appareils
+- Encodage UTF-8 avec BOM pour Excel
 
 ## Deployment (Production)
 
@@ -154,6 +190,7 @@ Créer un fichier `.env` à la racine (déjà dans `.gitignore`), voir `.env.exa
 ```
 HA_URL=http://192.168.40.214:8123
 HA_TOKEN=<ton token>
+WEATHER_ENTITY=weather.pirateweather   # optionnel, c'est le défaut
 ```
 
 ```bash

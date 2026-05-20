@@ -31,6 +31,11 @@
                         <option value="60">1 min</option>
                         <option value="300">5 min</option>
                     </select>
+                    <div class="threshold-wrapper" title="Seuil d'alerte puissance (W)">
+                        <span class="threshold-label">⚡</span>
+                        <input type="number" id="power-threshold" class="threshold-input" min="500" max="15000" step="100">
+                        <span class="threshold-unit">W</span>
+                    </div>
                     <button id="autorefresh-btn" class="refresh-btn autorefresh-on" title="Auto-refresh actif">
                         <span class="btn-icon">⏱</span> Auto
                     </button>
@@ -49,6 +54,13 @@
 
         <!-- ===== ENERGY TAB ===== -->
         <div id="tab-energy" class="tab-content">
+
+            <!-- Météo -->
+            <section class="weather-section">
+                <div id="weather-widget" class="weather-widget">
+                    <span class="weather-loading">Chargement météo...</span>
+                </div>
+            </section>
 
             <!-- Main Stats Cards -->
             <section class="stats-grid">
@@ -74,7 +86,7 @@
                             <span id="today-consumption">--</span> <span class="stat-unit">kWh</span>
                         </div>
                         <div class="stat-secondary">
-                            Coût: <span id="today-cost">--</span> €
+                            Coût: <span id="today-cost">--</span> € <span id="compare-consumption" class="compare-badge"></span>
                         </div>
                     </div>
                 </div>
@@ -89,6 +101,7 @@
                         <div class="stat-secondary">
                             Revente: <span id="surplus-revenue">--</span> € · <span id="surplus-kwh">--</span> kWh injectés
                         </div>
+                        <div class="stat-secondary"><span id="compare-production" class="compare-badge"></span></div>
                     </div>
                 </div>
 
@@ -126,13 +139,25 @@
                         <canvas id="powerChart"></canvas>
                     </div>
                 </div>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h2>🍩 Mix Énergétique</h2>
+                    </div>
+                    <div class="chart-container chart-container--donut">
+                        <canvas id="mixChart"></canvas>
+                    </div>
+                </div>
             </section>
 
             <!-- Top Consumers -->
             <section class="top-consumers">
                 <div class="section-header">
                     <h2>🔥 Top Consommateurs</h2>
-                    <span class="update-time">Mis à jour: <span id="last-update">--</span></span>
+                    <div class="section-header-right">
+                        <span class="update-time">Mis à jour: <span id="last-update">--</span></span>
+                        <button id="export-csv-btn" class="export-btn" title="Exporter les données en CSV">⬇ CSV</button>
+                    </div>
                 </div>
                 <div class="consumers-grid" id="consumers-grid"></div>
             </section>
@@ -174,6 +199,16 @@
                             <span id="self-sufficiency">--</span> %
                         </div>
                         <div class="detail-sub">% conso couverte par le solaire</div>
+                    </div>
+                    <div class="detail-card bilan-card">
+                        <h3>💶 Bilan Net</h3>
+                        <div class="detail-value" id="bilan-net-value">--</div>
+                        <div class="detail-sub">revente − coût réseau</div>
+                    </div>
+                    <div class="detail-card co2-card">
+                        <h3>🌿 CO₂ Évité</h3>
+                        <div class="detail-value" id="co2-avoided-value">--</div>
+                        <div class="detail-sub">production solaire × 52 g/kWh</div>
                     </div>
                 </div>
             </section>

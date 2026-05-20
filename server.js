@@ -39,6 +39,33 @@ const haClient = axios.create({
     timeout: 5000
 });
 
+// ===== History Helpers (server-side delta computations) =====
+const _histDeltaWithResets = (history) => {
+    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
+    if (valid.length < 2) return 0;
+    let total = 0, segStart = parseFloat(valid[0].state);
+    for (let i = 1; i < valid.length; i++) {
+        const curr = parseFloat(valid[i].state), prev = parseFloat(valid[i - 1].state);
+        if (curr < prev) { total += prev - segStart; segStart = curr; }
+    }
+    return Math.max(0, total + parseFloat(valid[valid.length - 1].state) - segStart);
+};
+const _histDelta = (history) => {
+    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
+    if (valid.length < 2) return 0;
+    return Math.max(0, parseFloat(valid[valid.length - 1].state) - parseFloat(valid[0].state));
+};
+const _histDeltaWithResetsAbs = (history) => {
+    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
+    if (valid.length < 2) return 0;
+    let total = 0, segStart = Math.abs(parseFloat(valid[0].state));
+    for (let i = 1; i < valid.length; i++) {
+        const curr = Math.abs(parseFloat(valid[i].state)), p = Math.abs(parseFloat(valid[i - 1].state));
+        if (curr < p) { total += p - segStart; segStart = curr; }
+    }
+    return Math.max(0, total + Math.abs(parseFloat(valid[valid.length - 1].state)) - segStart);
+};
+
 // ===== Proxy Endpoints =====
 
 // GET /api/states/:entityId
@@ -97,6 +124,30 @@ app.get('/api/states', async (req, res) => {
     } catch (error) {
         console.error('Error fetching multiple states:', error.message);
         res.status(500).json({ error: 'Failed to fetch states' });
+    }
+});
+
+// GET /api/weather — Lit l'entité météo depuis HA (Pirate Weather).
+// Configurer WEATHER_ENTITY dans .env si l'entity_id est différent.
+app.get('/api/weather', async (req, res) => {
+    const entityId = process.env.WEATHER_ENTITY || 'weather.pirateweather';
+    try {
+        const response = await haClient.get(`/states/${entityId}`);
+        const s = response.data;
+        res.json({
+            condition: s.state,
+            temperature: s.attributes.temperature,
+            apparent_temperature: s.attributes.apparent_temperature,
+            wind_speed: s.attributes.wind_speed,
+            wind_bearing: s.attributes.wind_bearing,
+            humidity: s.attributes.humidity,
+            uv_index: s.attributes.uv_index,
+            pressure: s.attributes.pressure,
+            source: 'ha'
+        });
+    } catch (error) {
+        console.error('Error fetching weather from HA:', error.message);
+        res.status(500).json({ error: 'Failed to fetch weather' });
     }
 });
 
@@ -188,7 +239,18 @@ app.get('/api/all-energy-data', async (req, res) => {
 
         const deviceEnergyIds = devicePairs.map(([e]) => e);
 
-        const [historyResults, deviceHistoryResults] = await Promise.all([
+        const prevEndTime = startTime;
+        const prevStartTime = periodToStartTime(period, prevEndTime);
+        const prevStartISO = toLocalISO(prevStartTime);
+        const prevEndISO = toLocalISO(prevEndTime);
+        const prevCompIds = [
+            'sensor.ecojoko_consommation_hp_reseau',
+            'sensor.ecojoko_consommation_hc_reseau',
+            'sensor.envoy_122303081421_lifetime_net_energy_production',
+            'sensor.ecojoko_surplus_de_production'
+        ];
+
+        const [historyResults, deviceHistoryResults, prevHistResults] = await Promise.all([
             Promise.allSettled(historyEntityIds.map(id =>
                 haClient.get(`/history/period/${startISO}`, {
                     params: { filter_entity_id: id, end_time: endISO }
@@ -197,6 +259,11 @@ app.get('/api/all-energy-data', async (req, res) => {
             Promise.allSettled(deviceEnergyIds.map(id =>
                 haClient.get(`/history/period/${startISO}`, {
                     params: { filter_entity_id: id, end_time: endISO }
+                })
+            )),
+            Promise.allSettled(prevCompIds.map(id =>
+                haClient.get(`/history/period/${prevStartISO}`, {
+                    params: { filter_entity_id: id, end_time: prevEndISO }
                 })
             ))
         ]);
@@ -226,7 +293,18 @@ app.get('/api/all-energy-data', async (req, res) => {
             devices[i].energy = energy;
         });
 
-        res.json({ main, devices, history });
+        const getPrevHist = (i) => {
+            const r = prevHistResults[i];
+            return r?.status === 'fulfilled' && r.value?.data?.[0] ? r.value.data[0] : [];
+        };
+        const prev = {
+            hp: _histDeltaWithResets(getPrevHist(0)),
+            hc: _histDeltaWithResets(getPrevHist(1)),
+            production: _histDelta(getPrevHist(2)) * 1000,
+            surplus: _histDeltaWithResetsAbs(getPrevHist(3))
+        };
+
+        res.json({ main, devices, history, prev });
     } catch (error) {
         console.error('Error in all-energy-data:', error.message);
         res.status(500).json({ error: 'Failed to fetch energy data' });

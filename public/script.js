@@ -39,7 +39,9 @@ const SENSORS = {
 };
 
 // ===== State Variables =====
-let energyChart, powerChart, waterChart;
+let energyChart, powerChart, waterChart, mixChart;
+let prevData = { hp: 0, hc: 0, production: 0, surplus: 0 };
+let powerThreshold = parseInt(localStorage.getItem('powerThreshold') || '3000', 10);
 let currentData = {
     currentPower: 0,
     surplus: 0,
@@ -83,7 +85,14 @@ const elements = {
     refreshBtn: document.getElementById('refresh-btn'),
     autorefreshBtn: document.getElementById('autorefresh-btn'),
     refreshIntervalSelect: document.getElementById('refresh-interval-select'),
-    loadingOverlay: document.getElementById('loading-overlay')
+    loadingOverlay: document.getElementById('loading-overlay'),
+    powerThresholdInput: document.getElementById('power-threshold'),
+    compareConsumption: document.getElementById('compare-consumption'),
+    compareProduction: document.getElementById('compare-production'),
+    bilanNetValue: document.getElementById('bilan-net-value'),
+    co2AvoidedValue: document.getElementById('co2-avoided-value'),
+    weatherWidget: document.getElementById('weather-widget'),
+    exportCsvBtn: document.getElementById('export-csv-btn')
 };
 
 // ===== Utility Functions =====
@@ -185,6 +194,104 @@ const toLocalISO = (date) => {
     return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
 };
 
+
+// ===== Météo (Pirate Weather via HA) =====
+const haConditionToInfo = (condition) => {
+    const map = {
+        'sunny':           { icon: '☀️',  desc: 'Ensoleillé' },
+        'clear-night':     { icon: '🌙',  desc: 'Nuit claire' },
+        'partlycloudy':    { icon: '⛅',  desc: 'Partiellement nuageux' },
+        'cloudy':          { icon: '🌥️', desc: 'Nuageux' },
+        'fog':             { icon: '🌫️', desc: 'Brouillard' },
+        'rainy':           { icon: '🌧️', desc: 'Pluvieux' },
+        'showers-day':     { icon: '🌦️', desc: 'Averses' },
+        'showers-night':   { icon: '🌧️', desc: 'Averses nocturnes' },
+        'pouring':         { icon: '🌧️', desc: 'Forte pluie' },
+        'snowy':           { icon: '🌨️', desc: 'Neige' },
+        'snowy-rainy':     { icon: '🌨️', desc: 'Neige et pluie' },
+        'lightning':       { icon: '⚡',  desc: 'Orage' },
+        'lightning-rainy': { icon: '⛈️', desc: 'Orage pluvieux' },
+        'windy':           { icon: '🌬️', desc: 'Venteux' },
+        'windy-variant':   { icon: '🌬️', desc: 'Très venteux' },
+        'hail':            { icon: '🌨️', desc: 'Grêle' },
+        'exceptional':     { icon: '⚠️',  desc: 'Conditions exceptionnelles' },
+    };
+    return map[condition] || { icon: '🌡️', desc: condition };
+};
+
+const fetchWeather = async () => {
+    const widget = elements.weatherWidget;
+    if (!widget) return;
+    try {
+        const data = await fetchHA('weather');
+        if (!data || data.error) return;
+        const { icon, desc } = haConditionToInfo(data.condition);
+        const uv = data.uv_index;
+        const uvPct = uv != null ? Math.min(100, (uv / 11) * 100).toFixed(0) : null;
+        const feelLike = data.apparent_temperature != null ? `Ressenti ${Math.round(data.apparent_temperature)}°C` : '';
+        const humidity = data.humidity != null ? `<span class="weather-wind">💧 ${data.humidity}%</span>` : '';
+        widget.innerHTML = `
+            <div class="weather-main">
+                <span class="weather-icon">${icon}</span>
+                <div class="weather-temps">
+                    <span class="weather-temp-main">${Math.round(data.temperature)}°C</span>
+                    <span class="weather-temp-range">${feelLike}</span>
+                </div>
+                <span class="weather-desc">${desc}</span>
+                <span class="weather-wind">💨 ${Math.round(data.wind_speed)} km/h</span>
+                ${humidity}
+            </div>
+            ${uvPct !== null ? `
+            <div class="weather-solar">
+                <span class="weather-solar-label">Indice UV</span>
+                <div class="solar-bar-wrap">
+                    <div class="solar-bar"><div class="solar-fill" style="width:${uvPct}%"></div></div>
+                    <span class="solar-value">UV ${uv.toFixed(0)}</span>
+                </div>
+            </div>` : ''}`;
+    } catch (e) {
+        console.error('fetchWeather error:', e);
+    }
+};
+
+// ===== Comparaison période précédente =====
+const compareBadge = (curr, prev, higherIsBetter) => {
+    if (!prev || prev === 0 || curr === undefined) return '';
+    const pct = ((curr - prev) / prev) * 100;
+    const better = higherIsBetter ? pct >= 0 : pct <= 0;
+    const cls = better ? 'compare-better' : 'compare-worse';
+    const arrow = pct >= 0 ? '↑' : '↓';
+    return `<span class="${cls}">${arrow} ${Math.abs(pct).toFixed(1).replace('.', ',')}% vs préc.</span>`;
+};
+
+// ===== Export CSV =====
+const exportCSV = () => {
+    const period = elements.periodSelect.value;
+    const lbl = PERIOD_LABELS[period];
+    const surplusKwh = currentData.periodSurplus || 0;
+    const selfConsumed = Math.max(0, currentData.periodProduction - surplusKwh);
+    const totalLoad = (currentData.periodHP + currentData.periodHC) + selfConsumed;
+    const cost = currentData.periodHP * HA_CONFIG.priceHP + currentData.periodHC * HA_CONFIG.priceHC;
+    const revenue = surplusKwh * HA_CONFIG.priceSurplus;
+    const co2 = (currentData.periodProduction * 0.052).toFixed(3);
+    const now = new Date().toLocaleString('fr-FR');
+
+    let csv = `Exporté le;${now}\nPériode;${lbl}\n\n`;
+    csv += `Réseau HP (kWh);Réseau HC (kWh);Production (kWh);Surplus injecté (kWh);Conso. Maison (kWh);Coût réseau (€);Revente (€);CO2 évité (kg)\n`;
+    csv += `${currentData.periodHP.toFixed(3)};${currentData.periodHC.toFixed(3)};${currentData.periodProduction.toFixed(3)};${surplusKwh.toFixed(3)};${totalLoad.toFixed(3)};${cost.toFixed(2)};${revenue.toFixed(2)};${co2}\n\n`;
+    csv += `Appareil;Énergie (kWh);Puissance actuelle (W)\n`;
+    [...currentData.devices].sort((a, b) => b.energy - a.energy).forEach(d => {
+        csv += `${d.name};${d.energy.toFixed(3)};${(d.power || 0).toFixed(1)}\n`;
+    });
+
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `energie-${period}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+};
 
 // ===== Chart Setup =====
 const initCharts = () => {
@@ -389,6 +496,65 @@ const initWaterChart = () => {
     });
 };
 
+// ===== Mix Chart Init =====
+const initMixChart = () => {
+    const ctx = document.getElementById('mixChart').getContext('2d');
+    mixChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Réseau HP', 'Réseau HC', 'Solaire autoconsommé'],
+            datasets: [{
+                data: [0, 0, 0],
+                backgroundColor: [
+                    'rgba(245, 158, 11, 0.75)',
+                    'rgba(59, 130, 246, 0.75)',
+                    'rgba(16, 185, 129, 0.75)'
+                ],
+                borderColor: [
+                    'rgba(245, 158, 11, 1)',
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(16, 185, 129, 1)'
+                ],
+                borderWidth: 2,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: { color: '#94a3b8', font: { size: 11 }, padding: 10 }
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleColor: '#f8fafc',
+                    bodyColor: '#f8fafc',
+                    borderColor: '#334155',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: (ctx) => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1).replace('.', ',') : '0';
+                            return ` ${ctx.parsed.toFixed(2).replace('.', ',')} kWh (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+};
+
+const updateMixChart = () => {
+    if (!mixChart) return;
+    const selfConsumed = Math.max(0, currentData.periodProduction - (currentData.periodSurplus || 0));
+    mixChart.data.datasets[0].data = [currentData.periodHP, currentData.periodHC, selfConsumed];
+    mixChart.update('smooth');
+};
+
 // Calcule les valeurs cumulées d'un historique qui se remet à zéro (ex: compteur eau)
 const historyCumulative = (history) => {
     const valid = history.filter(h => !isNaN(parseFloat(h.state)));
@@ -552,6 +718,9 @@ const fetchAllData = async () => {
         // Surplus = réinjection réseau (capteur Ecojoko direct, valeurs négatives, reset journalier)
         currentData.periodSurplus = historyDeltaWithResetsAbs(surplusHistory);
 
+        // Données période précédente
+        if (data.prev) prevData = data.prev;
+
         // Update UI
         updateUI();
         updateCharts();
@@ -625,7 +794,43 @@ const updateUI = () => {
 
     elements.selfConsumption.textContent = formatNumber(selfConsumptionPct, 1);
     elements.selfSufficiency.textContent = formatNumber(selfSufficiencyPct, 1);
-    
+
+    // Bilan Net (€)
+    const bilanNet = surplusRevenue - cost;
+    if (elements.bilanNetValue) {
+        elements.bilanNetValue.textContent = `${bilanNet >= 0 ? '+' : ''}${formatNumber(bilanNet, 2)} €`;
+        elements.bilanNetValue.style.color = bilanNet >= 0 ? '#34d399' : '#f87171';
+    }
+
+    // CO2 évité (52 g/kWh — facteur moyen réseau français)
+    const co2Kg = currentData.periodProduction * 0.052;
+    if (elements.co2AvoidedValue) {
+        elements.co2AvoidedValue.textContent = co2Kg >= 1
+            ? `${formatNumber(co2Kg, 2)} kg`
+            : `${formatNumber(co2Kg * 1000, 0)} g`;
+    }
+
+    // Comparaison période précédente
+    if (elements.compareConsumption) {
+        elements.compareConsumption.innerHTML = compareBadge(showNetConsumption, prevData.hp + prevData.hc, false);
+    }
+    if (elements.compareProduction) {
+        elements.compareProduction.innerHTML = compareBadge(showProduction, prevData.production, true);
+    }
+
+    // Seuil d'alerte puissance
+    const featuredCard = document.querySelector('.stat-card.featured');
+    const absPower = Math.abs(currentData.currentPower);
+    if (!isExporting && featuredCard) {
+        featuredCard.classList.toggle('warning', absPower > powerThreshold && absPower <= powerThreshold * 1.6);
+        featuredCard.classList.toggle('danger', absPower > powerThreshold * 1.6);
+    } else if (featuredCard) {
+        featuredCard.classList.remove('warning', 'danger');
+    }
+
+    // Mix chart
+    updateMixChart();
+
     // Update time
     const now = new Date();
     elements.lastUpdate.textContent = now.toLocaleTimeString('fr-FR');
@@ -689,6 +894,18 @@ const initEventListeners = () => {
         elements.autorefreshBtn.classList.toggle('autorefresh-off', !autoRefreshEnabled);
         applyAutoRefresh();
     });
+
+    if (elements.powerThresholdInput) {
+        elements.powerThresholdInput.value = powerThreshold;
+        elements.powerThresholdInput.addEventListener('change', (e) => {
+            powerThreshold = parseInt(e.target.value, 10) || 3000;
+            localStorage.setItem('powerThreshold', powerThreshold);
+        });
+    }
+
+    if (elements.exportCsvBtn) {
+        elements.exportCsvBtn.addEventListener('click', exportCSV);
+    }
 };
 
 // ===== Auto Refresh =====
@@ -711,14 +928,20 @@ const startAutoRefresh = () => {
 document.addEventListener('DOMContentLoaded', () => {
     initCharts();
     initWaterChart();
+    initMixChart();
     initTabs();
     initEventListeners();
     startAutoRefresh();
+    fetchWeather();
+    setInterval(fetchWeather, 10 * 60 * 1000);
 });
 
 // ===== Export for debugging =====
 window.HADashboard = {
     sensors: SENSORS,
     currentData: currentData,
-    fetchAllData: fetchAllData
+    prevData: prevData,
+    fetchAllData: fetchAllData,
+    fetchWeather: fetchWeather,
+    exportCSV: exportCSV
 };
