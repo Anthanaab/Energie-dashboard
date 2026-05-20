@@ -284,13 +284,7 @@ app.get('/api/all-energy-data', async (req, res) => {
             const hist = r?.status === 'fulfilled' && r.value?.data?.[0]
                 ? r.value.data[0]
                 : [];
-            let energy = 0;
-            if (hist.length >= 2) {
-                const first = parseFloat(hist[0].state) || 0;
-                const last = parseFloat(hist[hist.length - 1].state) || 0;
-                energy = Math.max(0, last - first);
-            }
-            devices[i].energy = energy;
+            devices[i].energy = _histDeltaWithResets(hist);
         });
 
         const getPrevHist = (i) => {
