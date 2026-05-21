@@ -806,6 +806,7 @@ const updateSolarArc = () => {
         let label = 'VEILLE', color = 'rgba(148,163,184,0.45)';
         if (sp > 50 && cp < -50) { label = 'EXPORT';       color = 'rgba(52,211,153,0.8)'; }
         else if (sp > 50)         { label = 'PRODUCTION';   color = 'rgba(251,191,36,0.8)'; }
+        else if (cp < -100)       { label = 'EXPORT';       color = 'rgba(52,211,153,0.8)'; }
         else if (cp > 100)        { label = 'IMPORT';       color = 'rgba(129,140,248,0.8)'; }
         statusEl.textContent = label;
         statusEl.setAttribute('fill', color);
