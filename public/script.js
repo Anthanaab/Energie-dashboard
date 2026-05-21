@@ -273,7 +273,7 @@ const exportCSV = () => {
     const totalLoad = (currentData.periodHP + currentData.periodHC) + selfConsumed;
     const cost = currentData.periodHP * HA_CONFIG.priceHP + currentData.periodHC * HA_CONFIG.priceHC;
     const revenue = surplusKwh * HA_CONFIG.priceSurplus;
-    const co2 = (currentData.periodProduction * 0.052).toFixed(3);
+    const co2 = (currentData.periodProduction * 0.057).toFixed(3);
     const now = new Date().toLocaleString('fr-FR');
 
     let csv = `Exporté le;${now}\nPériode;${lbl}\n\n`;
@@ -803,7 +803,7 @@ const updateUI = () => {
     }
 
     // CO2 évité (52 g/kWh — facteur moyen réseau français)
-    const co2Kg = currentData.periodProduction * 0.052;
+    const co2Kg = currentData.periodProduction * 0.057;
     if (elements.co2AvoidedValue) {
         elements.co2AvoidedValue.textContent = co2Kg >= 1
             ? `${formatNumber(co2Kg, 2)} kg`

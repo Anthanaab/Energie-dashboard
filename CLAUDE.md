@@ -150,7 +150,7 @@ ce qui permet d'obtenir un delta correct sur toutes les périodes (1h, 24h, 7j, 
 - `revente surplus − coût réseau (HP+HC)` — vert si positif, rouge si négatif
 
 ### CO₂ Évité
-- `production (kWh) × 0,052 kg/kWh` (facteur moyen réseau français RTE)
+- `production (kWh) × 0,057 kg/kWh` (facteur moyen réseau français, source ADEME 2023)
 
 ### Comparaison période précédente
 - Badges `↑/↓ X% vs préc.` sur les cartes HP+HC et Production
