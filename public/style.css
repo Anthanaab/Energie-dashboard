@@ -892,26 +892,26 @@ body::after {
 }
 
 .flow-line {
-    animation: flowRight 1.2s linear infinite;
+    animation: flowRight 1.4s linear infinite;
 }
 
 .flow-line.flow-reverse {
-    animation: flowLeft 1.2s linear infinite;
+    animation: flowLeft 1.4s linear infinite;
 }
 
 .flow-line.flow-inactive {
     animation: none;
-    opacity: 0.12;
+    opacity: 0.28;
 }
 
 @keyframes flowRight {
-    from { stroke-dashoffset: 13; }
+    from { stroke-dashoffset: 14; }
     to   { stroke-dashoffset: 0; }
 }
 
 @keyframes flowLeft {
     from { stroke-dashoffset: 0; }
-    to   { stroke-dashoffset: 13; }
+    to   { stroke-dashoffset: 14; }
 }
 
 #arc-sun-glow { opacity: 0; }

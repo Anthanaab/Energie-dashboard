@@ -100,6 +100,9 @@
                             <feGaussianBlur stdDeviation="2.5" result="blur"/>
                             <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
                         </filter>
+                        <filter id="txt-shadow" x="-20%" y="-30%" width="140%" height="160%">
+                            <feDropShadow dx="0" dy="1" stdDeviation="2.5" flood-color="rgba(0,0,0,0.9)" flood-opacity="1"/>
+                        </filter>
                     </defs>
 
                     <!-- Backgrounds -->
@@ -108,17 +111,17 @@
                     <rect x="0" y="150" width="760" height="65" fill="url(#gnd-fade)"/>
                     <line x1="50" y1="172" x2="710" y2="172" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
                     <!-- Icon halos -->
-                    <ellipse cx="80"  cy="82" rx="54" ry="60" fill="url(#blue-halo)"/>
-                    <ellipse cx="680" cy="82" rx="54" ry="60" fill="url(#amber-halo)"/>
+                    <ellipse cx="80"  cy="70" rx="44" ry="48" fill="url(#blue-halo)"/>
+                    <ellipse cx="680" cy="72" rx="44" ry="50" fill="url(#amber-halo)"/>
 
                     <!-- Header: title + status -->
-                    <text x="18" y="21" fill="rgba(148,163,184,0.5)" font-size="9" font-weight="700"
-                          font-family="Inter,sans-serif" letter-spacing="2">FLUX ÉNERGÉTIQUE</text>
+                    <text x="18" y="21" fill="rgba(148,163,184,0.6)" font-size="9" font-weight="700"
+                          font-family="Inter,sans-serif" letter-spacing="2" filter="url(#txt-shadow)">FLUX ÉNERGÉTIQUE</text>
                     <text id="arc-status" x="742" y="21" fill="rgba(148,163,184,0.45)" font-size="9"
-                          font-weight="700" text-anchor="end" font-family="Inter,sans-serif" letter-spacing="1.5">--</text>
+                          font-weight="700" text-anchor="end" font-family="Inter,sans-serif" letter-spacing="1.5" filter="url(#txt-shadow)">--</text>
 
                     <!-- Arc path -->
-                    <path d="M80,128 Q380,18 680,128" fill="none"
+                    <path d="M80,128 Q380,12 680,128" fill="none"
                           stroke="url(#arc-grad)" stroke-width="1.8" stroke-dasharray="4 6"/>
 
                     <!-- Time labels -->
@@ -127,32 +130,32 @@
                     <text x="680" y="142" fill="rgba(148,163,184,0.5)"  font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">20:00</text>
 
                     <!-- Sun: large haze, pulsing glow, rays, core -->
-                    <circle id="arc-sun-haze" cx="380" cy="72" r="38" fill="url(#sun-haze-grad)" opacity="0"/>
-                    <circle id="arc-sun-glow" cx="380" cy="72" r="19" fill="rgba(251,191,36,0.18)" opacity="0"/>
+                    <circle id="arc-sun-haze" cx="380" cy="70" r="38" fill="url(#sun-haze-grad)" opacity="0"/>
+                    <circle id="arc-sun-glow" cx="380" cy="70" r="19" fill="rgba(251,191,36,0.18)" opacity="0"/>
                     <g id="arc-sun-rays" opacity="0">
-                        <line x1="-22" y1="0"   x2="-30" y2="0"   stroke="rgba(251,191,36,0.38)" stroke-width="1.5"/>
-                        <line x1="22"  y1="0"   x2="30"  y2="0"   stroke="rgba(251,191,36,0.38)" stroke-width="1.5"/>
-                        <line x1="0"   y1="-22" x2="0"   y2="-30" stroke="rgba(251,191,36,0.38)" stroke-width="1.5"/>
-                        <line x1="0"   y1="22"  x2="0"   y2="30"  stroke="rgba(251,191,36,0.38)" stroke-width="1.5"/>
-                        <line x1="-16" y1="-16" x2="-21" y2="-21" stroke="rgba(251,191,36,0.26)" stroke-width="1.2"/>
-                        <line x1="16"  y1="-16" x2="21"  y2="-21" stroke="rgba(251,191,36,0.26)" stroke-width="1.2"/>
-                        <line x1="-16" y1="16"  x2="-21" y2="21"  stroke="rgba(251,191,36,0.26)" stroke-width="1.2"/>
-                        <line x1="16"  y1="16"  x2="21"  y2="21"  stroke="rgba(251,191,36,0.26)" stroke-width="1.2"/>
+                        <line x1="-22" y1="0"   x2="-30" y2="0"   stroke="rgba(251,191,36,0.44)" stroke-width="1.5"/>
+                        <line x1="22"  y1="0"   x2="30"  y2="0"   stroke="rgba(251,191,36,0.44)" stroke-width="1.5"/>
+                        <line x1="0"   y1="-22" x2="0"   y2="-30" stroke="rgba(251,191,36,0.44)" stroke-width="1.5"/>
+                        <line x1="0"   y1="22"  x2="0"   y2="30"  stroke="rgba(251,191,36,0.44)" stroke-width="1.5"/>
+                        <line x1="-16" y1="-16" x2="-21" y2="-21" stroke="rgba(251,191,36,0.32)" stroke-width="1.2"/>
+                        <line x1="16"  y1="-16" x2="21"  y2="-21" stroke="rgba(251,191,36,0.32)" stroke-width="1.2"/>
+                        <line x1="-16" y1="16"  x2="-21" y2="21"  stroke="rgba(251,191,36,0.32)" stroke-width="1.2"/>
+                        <line x1="16"  y1="16"  x2="21"  y2="21"  stroke="rgba(251,191,36,0.32)" stroke-width="1.2"/>
                     </g>
-                    <circle id="arc-sun" cx="380" cy="72" r="9" fill="url(#sun-core-grad)"
+                    <circle id="arc-sun" cx="380" cy="70" r="9" fill="url(#sun-core-grad)"
                             filter="url(#sun-glow-f)" opacity="0"/>
-                    <text id="arc-sun-prod" x="380" y="52" fill="#fef3c7" font-size="10" font-weight="700"
-                          text-anchor="middle" font-family="Inter,sans-serif" opacity="0"></text>
+                    <text id="arc-sun-prod" x="380" y="50" fill="#fef3c7" font-size="10" font-weight="700"
+                          text-anchor="middle" font-family="Inter,sans-serif" filter="url(#txt-shadow)" opacity="0"></text>
                     <!-- Moon (night) -->
                     <text id="arc-moon" x="380" y="68" font-size="24" text-anchor="middle" opacity="0">🌙</text>
 
                     <!-- Connector lines: icon base → node dot -->
-                    <line x1="80"  y1="88"  x2="80"  y2="151" stroke="rgba(99,102,241,0.18)"  stroke-width="1" stroke-dasharray="2 4"/>
-                    <line x1="380" y1="132" x2="380" y2="151" stroke="rgba(241,245,249,0.15)" stroke-width="1" stroke-dasharray="2 4"/>
-                    <line x1="680" y1="96"  x2="680" y2="151" stroke="rgba(251,191,36,0.18)"  stroke-width="1" stroke-dasharray="2 4"/>
+                    <line x1="80"  y1="88"  x2="80"  y2="155" stroke="rgba(99,102,241,0.25)"  stroke-width="1" stroke-dasharray="2 4"/>
+                    <line x1="380" y1="150" x2="380" y2="155" stroke="rgba(241,245,249,0.22)" stroke-width="1" stroke-dasharray="2 4"/>
+                    <line x1="680" y1="94"  x2="680" y2="155" stroke="rgba(251,191,36,0.25)"  stroke-width="1" stroke-dasharray="2 4"/>
 
                     <!-- ===== LEFT: Tour Haute Tension (Réseau) ===== -->
-                    <g transform="translate(80,88)" opacity="0.78">
+                    <g transform="translate(80,88) scale(0.75)" opacity="0.88">
                         <line x1="0"   y1="-52" x2="0"   y2="0"   stroke="#64748b" stroke-width="2"/>
                         <line x1="-17" y1="-46" x2="17"  y2="-46" stroke="#64748b" stroke-width="2"/>
                         <line x1="-13" y1="-40" x2="13"  y2="-40" stroke="#5a6a7e" stroke-width="1.5"/>
@@ -170,12 +173,12 @@
                         <line x1="-10" y1="-10" x2="10"  y2="-4"  stroke="#3d5068" stroke-width="0.8"/>
                         <line x1="10"  y1="-10" x2="-10" y2="-4"  stroke="#3d5068" stroke-width="0.8"/>
                     </g>
-                    <circle cx="80" cy="158" r="7" fill="rgba(99,102,241,0.95)" filter="url(#soft-glow)"/>
-                    <text x="80" y="172" fill="rgba(148,163,184,0.62)" font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">RÉSEAU</text>
-                    <text id="arc-grid-val" x="80" y="185" fill="#c7d2fe" font-size="10.5" font-weight="700" text-anchor="middle" font-family="Inter,sans-serif">--</text>
+                    <circle cx="80" cy="162" r="7" fill="rgba(99,102,241,0.95)" filter="url(#soft-glow)"/>
+                    <text x="80" y="176" fill="rgba(203,213,225,0.9)" font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif" filter="url(#txt-shadow)">RÉSEAU</text>
+                    <text id="arc-grid-val" x="80" y="189" fill="#c7d2fe" font-size="11" font-weight="700" text-anchor="middle" font-family="Inter,sans-serif" filter="url(#txt-shadow)">--</text>
 
                     <!-- ===== CENTER: Maison avec panneaux solaires ===== -->
-                    <g transform="translate(380,112)" opacity="0.88">
+                    <g transform="translate(380,136) scale(0.72)" opacity="0.92">
                         <!-- Cheminée -->
                         <rect x="12" y="-50" width="9" height="22"
                               fill="rgba(160,180,210,0.1)" stroke="rgba(160,180,210,0.2)" stroke-width="1"/>
@@ -206,12 +209,12 @@
                         <line x1="20" y1="-24" x2="20" y2="-13" stroke="rgba(148,163,184,0.12)" stroke-width="0.5"/>
                         <line x1="14" y1="-18" x2="27" y2="-18" stroke="rgba(148,163,184,0.12)" stroke-width="0.5"/>
                     </g>
-                    <circle cx="380" cy="158" r="7" fill="rgba(241,245,249,0.78)" filter="url(#soft-glow)"/>
-                    <text x="380" y="172" fill="rgba(148,163,184,0.62)" font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">MAISON</text>
-                    <text id="arc-house-val" x="380" y="185" fill="#f1f5f9" font-size="10.5" font-weight="700" text-anchor="middle" font-family="Inter,sans-serif">--</text>
+                    <circle cx="380" cy="162" r="7" fill="rgba(241,245,249,0.78)" filter="url(#soft-glow)"/>
+                    <text x="380" y="176" fill="rgba(203,213,225,0.9)" font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif" filter="url(#txt-shadow)">MAISON</text>
+                    <text id="arc-house-val" x="380" y="189" fill="#f1f5f9" font-size="11" font-weight="700" text-anchor="middle" font-family="Inter,sans-serif" filter="url(#txt-shadow)">--</text>
 
                     <!-- ===== RIGHT: Rack de panneaux solaires ===== -->
-                    <g transform="translate(680,88)" opacity="0.85">
+                    <g transform="translate(680,88) scale(0.75)" opacity="0.88">
                         <!-- Supports -->
                         <line x1="-14" y1="-3" x2="-14" y2="8"  stroke="rgba(251,191,36,0.32)" stroke-width="1.5"/>
                         <line x1="14"  y1="-3" x2="14"  y2="8"  stroke="rgba(251,191,36,0.32)" stroke-width="1.5"/>
@@ -230,18 +233,18 @@
                         <rect x="-4"  y="-17" width="11" height="11" rx="0.8" fill="rgba(251,191,36,0.16)" stroke="rgba(251,191,36,0.24)" stroke-width="0.5"/>
                         <rect x="9"   y="-17" width="11" height="11" rx="0.8" fill="rgba(251,191,36,0.16)" stroke="rgba(251,191,36,0.24)" stroke-width="0.5"/>
                     </g>
-                    <circle cx="680" cy="158" r="7" fill="rgba(251,191,36,0.95)" filter="url(#soft-glow)"/>
-                    <text x="680" y="172" fill="rgba(148,163,184,0.62)" font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">SOLAIRE</text>
-                    <text id="arc-solar-val" x="680" y="185" fill="#fbbf24" font-size="10.5" font-weight="700" text-anchor="middle" font-family="Inter,sans-serif">--</text>
+                    <circle cx="680" cy="162" r="7" fill="rgba(251,191,36,0.95)" filter="url(#soft-glow)"/>
+                    <text x="680" y="176" fill="rgba(203,213,225,0.9)" font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif" filter="url(#txt-shadow)">SOLAIRE</text>
+                    <text id="arc-solar-val" x="680" y="189" fill="#fbbf24" font-size="11" font-weight="700" text-anchor="middle" font-family="Inter,sans-serif" filter="url(#txt-shadow)">--</text>
 
                     <!-- Flow separator -->
-                    <line x1="30" y1="148" x2="730" y2="148" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+                    <line x1="30" y1="152" x2="730" y2="152" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
                     <!-- Flow track -->
-                    <line x1="108" y1="158" x2="352" y2="158" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
-                    <line x1="408" y1="158" x2="652" y2="158" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+                    <line x1="108" y1="162" x2="352" y2="162" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+                    <line x1="408" y1="162" x2="652" y2="162" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
                     <!-- Animated flows -->
-                    <path id="flow-grid"  d="M108,158 L352,158" fill="none" stroke="rgba(99,102,241,0.8)"  stroke-width="2" stroke-dasharray="6 7" class="flow-line"/>
-                    <path id="flow-solar" d="M408,158 L652,158" fill="none" stroke="rgba(251,191,36,0.8)" stroke-width="2" stroke-dasharray="6 7" class="flow-line"/>
+                    <path id="flow-grid"  d="M108,162 L352,162" fill="none" stroke="rgba(129,140,248,0.92)" stroke-width="2.5" stroke-dasharray="8 6" class="flow-line"/>
+                    <path id="flow-solar" d="M408,162 L652,162" fill="none" stroke="rgba(251,191,36,0.92)"  stroke-width="2.5" stroke-dasharray="8 6" class="flow-line"/>
                 </svg>
             </div>
         </header>

@@ -760,9 +760,9 @@ const updateSolarArc = () => {
     const isDay = t >= 0 && t <= 1;
 
     if (isDay) {
-        // Quadratic bezier P0=(80,128) P1=(380,18) P2=(680,128)
+        // Quadratic bezier P0=(80,128) P1=(380,12) P2=(680,128)
         const x = (1-t)*(1-t)*80  + 2*t*(1-t)*380 + t*t*680;
-        const y = (1-t)*(1-t)*128 + 2*t*(1-t)*18  + t*t*128;
+        const y = (1-t)*(1-t)*128 + 2*t*(1-t)*12  + t*t*128;
 
         sun.setAttribute('cx', x.toFixed(1));
         sun.setAttribute('cy', y.toFixed(1));
@@ -800,7 +800,7 @@ const updateSolarArc = () => {
 
     if (gridVal)  gridVal.textContent  = fmtW(cp);
     if (houseVal) houseVal.textContent = fmtW(homeLoad);
-    if (solarVal) solarVal.textContent = sp > 5 ? fmtW(sp) : '--';
+    if (solarVal) solarVal.textContent = fmtW(sp);
 
     if (statusEl) {
         let label = 'VEILLE', color = 'rgba(148,163,184,0.45)';
