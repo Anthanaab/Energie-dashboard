@@ -795,29 +795,47 @@ const updateSolarArc = () => {
 
     const cp = currentData.currentPower || 0;
     const sp = currentData.currentSolarPower || 0;
-    const homeLoad = Math.max(0, sp + cp);
+    const isExporting = cp < -50;
+    const isImporting = cp > 50;
+    // Quand Enphase est en retard (sp=0) mais on exporte, on sait que la prod est >= |cp|
+    const displaySp = sp > 5 ? sp : (isExporting ? Math.abs(cp) : 0);
+    const homeLoad = Math.max(0, displaySp + cp);
     const fmtW = w => { const a = Math.abs(w); return a >= 1000 ? `${(a/1000).toFixed(1)} kW` : `${Math.round(a)} W`; };
 
     if (gridVal)  gridVal.textContent  = fmtW(cp);
     if (houseVal) houseVal.textContent = fmtW(homeLoad);
-    if (solarVal) solarVal.textContent = fmtW(sp);
+    if (solarVal) solarVal.textContent = displaySp > 0 ? fmtW(displaySp) : '--';
 
     if (statusEl) {
         let label = 'VEILLE', color = 'rgba(148,163,184,0.45)';
-        if (sp > 50 && cp < -50) { label = 'EXPORT';       color = 'rgba(52,211,153,0.8)'; }
-        else if (sp > 50)         { label = 'PRODUCTION';   color = 'rgba(251,191,36,0.8)'; }
-        else if (cp < -100)       { label = 'EXPORT';       color = 'rgba(52,211,153,0.8)'; }
-        else if (cp > 100)        { label = 'IMPORT';       color = 'rgba(129,140,248,0.8)'; }
+        if ((sp > 50 || displaySp > 50) && isExporting) { label = 'EXPORT';     color = 'rgba(52,211,153,0.8)'; }
+        else if (sp > 50)                                 { label = 'PRODUCTION'; color = 'rgba(251,191,36,0.8)'; }
+        else if (isExporting)                             { label = 'EXPORT';     color = 'rgba(52,211,153,0.8)'; }
+        else if (isImporting)                             { label = 'IMPORT';     color = 'rgba(129,140,248,0.8)'; }
         statusEl.textContent = label;
         statusEl.setAttribute('fill', color);
     }
 
+    // Flux : couleur verte quand export (house→grid), bleue pour import, ambrée pour solaire→maison
     if (flowGrid) {
-        if (Math.abs(cp) < 5)  flowGrid.className = 'flow-line flow-inactive';
-        else flowGrid.className = cp > 0 ? 'flow-line' : 'flow-line flow-reverse';
+        if (Math.abs(cp) < 50) {
+            flowGrid.className = 'flow-line flow-inactive';
+            flowGrid.style.stroke = 'rgba(129,140,248,0.92)';
+        } else if (isImporting) {
+            flowGrid.className = 'flow-line';
+            flowGrid.style.stroke = 'rgba(129,140,248,0.92)';
+        } else {
+            flowGrid.className = 'flow-line flow-reverse';
+            flowGrid.style.stroke = 'rgba(52,211,153,0.92)';
+        }
     }
     if (flowSolar) {
-        flowSolar.className = sp > 5 ? 'flow-line flow-reverse' : 'flow-line flow-inactive';
+        if (sp > 5 || isExporting) {
+            flowSolar.className = 'flow-line flow-reverse';
+            flowSolar.style.stroke = 'rgba(251,191,36,0.92)';
+        } else {
+            flowSolar.className = 'flow-line flow-inactive';
+        }
     }
 };
 
