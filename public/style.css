@@ -881,7 +881,7 @@ body::after {
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.07);
     margin-bottom: 16px;
-    background: #070d1a;
+    background: linear-gradient(to bottom, #070d1a 0%, #0b1f40 25%, #0e2750 55%, #091a36 82%, #070d1a 100%);
 }
 
 #solar-arc-svg {
