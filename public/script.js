@@ -742,8 +742,11 @@ const updateSolarArc = () => {
     const sun      = document.getElementById('arc-sun');
     if (!sun) return;
     const sunGlow  = document.getElementById('arc-sun-glow');
+    const sunHaze  = document.getElementById('arc-sun-haze');
+    const sunRays  = document.getElementById('arc-sun-rays');
     const sunProd  = document.getElementById('arc-sun-prod');
     const moon     = document.getElementById('arc-moon');
+    const statusEl = document.getElementById('arc-status');
     const gridVal  = document.getElementById('arc-grid-val');
     const houseVal = document.getElementById('arc-house-val');
     const solarVal = document.getElementById('arc-solar-val');
@@ -757,50 +760,60 @@ const updateSolarArc = () => {
     const isDay = t >= 0 && t <= 1;
 
     if (isDay) {
-        const x = (1-t)*(1-t)*30 + 2*t*(1-t)*300 + t*t*570;
-        const y = (1-t)*(1-t)*76 + 2*t*(1-t)*8  + t*t*76;
+        // Quadratic bezier P0=(80,128) P1=(380,18) P2=(680,128)
+        const x = (1-t)*(1-t)*80  + 2*t*(1-t)*380 + t*t*680;
+        const y = (1-t)*(1-t)*128 + 2*t*(1-t)*18  + t*t*128;
+
         sun.setAttribute('cx', x.toFixed(1));
         sun.setAttribute('cy', y.toFixed(1));
-        sunGlow.setAttribute('cx', x.toFixed(1));
-        sunGlow.setAttribute('cy', y.toFixed(1));
-        sunProd.setAttribute('x', x.toFixed(1));
-        sunProd.setAttribute('y', (y - 15).toFixed(1));
         sun.setAttribute('opacity', '1');
-        sunGlow.classList.add('sun-active');
-        moon.setAttribute('opacity', '0');
+
+        if (sunGlow) { sunGlow.setAttribute('cx', x.toFixed(1)); sunGlow.setAttribute('cy', y.toFixed(1)); sunGlow.classList.add('sun-active'); }
+        if (sunHaze) { sunHaze.setAttribute('cx', x.toFixed(1)); sunHaze.setAttribute('cy', y.toFixed(1)); sunHaze.setAttribute('opacity', '0.85'); }
+        if (sunRays) { sunRays.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)})`); sunRays.setAttribute('opacity', '1'); }
+        if (moon)    moon.setAttribute('opacity', '0');
 
         const sp = currentData.currentSolarPower || 0;
-        if (sp > 5) {
-            sunProd.setAttribute('opacity', '1');
-            sunProd.textContent = sp >= 1000 ? `${(sp/1000).toFixed(1)} kW` : `${Math.round(sp)} W`;
-        } else {
-            sunProd.setAttribute('opacity', '0');
+        if (sunProd) {
+            if (sp > 5) {
+                sunProd.setAttribute('x', x.toFixed(1));
+                sunProd.setAttribute('y', (y - 17).toFixed(1));
+                sunProd.setAttribute('opacity', '1');
+                sunProd.textContent = sp >= 1000 ? `${(sp/1000).toFixed(2)} kW ⚡` : `${Math.round(sp)} W ⚡`;
+            } else {
+                sunProd.setAttribute('opacity', '0');
+            }
         }
     } else {
         sun.setAttribute('opacity', '0');
-        sunGlow.classList.remove('sun-active');
-        sunProd.setAttribute('opacity', '0');
-        moon.setAttribute('opacity', '1');
+        if (sunGlow) sunGlow.classList.remove('sun-active');
+        if (sunHaze) sunHaze.setAttribute('opacity', '0');
+        if (sunRays) sunRays.setAttribute('opacity', '0');
+        if (sunProd) sunProd.setAttribute('opacity', '0');
+        if (moon)    moon.setAttribute('opacity', '1');
     }
 
     const cp = currentData.currentPower || 0;
     const sp = currentData.currentSolarPower || 0;
     const homeLoad = Math.max(0, sp + cp);
-    const fmtW = w => {
-        const abs = Math.abs(w);
-        return abs >= 1000 ? `${(abs/1000).toFixed(1)} kW` : `${Math.round(abs)} W`;
-    };
+    const fmtW = w => { const a = Math.abs(w); return a >= 1000 ? `${(a/1000).toFixed(1)} kW` : `${Math.round(a)} W`; };
 
     if (gridVal)  gridVal.textContent  = fmtW(cp);
     if (houseVal) houseVal.textContent = fmtW(homeLoad);
     if (solarVal) solarVal.textContent = sp > 5 ? fmtW(sp) : '--';
 
+    if (statusEl) {
+        let label = 'VEILLE', color = 'rgba(148,163,184,0.45)';
+        if (sp > 50 && cp < -50) { label = 'EXPORT';       color = 'rgba(52,211,153,0.8)'; }
+        else if (sp > 50)         { label = 'PRODUCTION';   color = 'rgba(251,191,36,0.8)'; }
+        else if (cp > 100)        { label = 'IMPORT';       color = 'rgba(129,140,248,0.8)'; }
+        statusEl.textContent = label;
+        statusEl.setAttribute('fill', color);
+    }
+
     if (flowGrid) {
-        if (Math.abs(cp) < 5) {
-            flowGrid.className = 'flow-line flow-inactive';
-        } else {
-            flowGrid.className = cp > 0 ? 'flow-line' : 'flow-line flow-reverse';
-        }
+        if (Math.abs(cp) < 5)  flowGrid.className = 'flow-line flow-inactive';
+        else flowGrid.className = cp > 0 ? 'flow-line' : 'flow-line flow-reverse';
     }
     if (flowSolar) {
         flowSolar.className = sp > 5 ? 'flow-line flow-reverse' : 'flow-line flow-inactive';
