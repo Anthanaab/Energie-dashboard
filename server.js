@@ -184,7 +184,8 @@ app.get('/api/all-energy-data', async (req, res) => {
             'sensor.ecojoko_consommation_temps_reel',
             'sensor.ecojoko_surplus_de_production',
             'sensor.ecojoko_consommation_hp_reseau',
-            'sensor.ecojoko_consommation_hc_reseau'
+            'sensor.ecojoko_consommation_hc_reseau',
+            'sensor.envoy_122303081421_current_power_production'
         ];
 
         const devicePairs = [

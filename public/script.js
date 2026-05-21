@@ -17,7 +17,8 @@ const SENSORS = {
         currentPower: 'sensor.ecojoko_consommation_temps_reel',
         surplus: 'sensor.ecojoko_surplus_de_production',
         hp: 'sensor.ecojoko_consommation_hp_reseau',
-        hc: 'sensor.ecojoko_consommation_hc_reseau'
+        hc: 'sensor.ecojoko_consommation_hc_reseau',
+        solarProduction: 'sensor.envoy_122303081421_current_power_production'
     },
     // Water sensor
     water: {
@@ -44,6 +45,7 @@ let prevData = { hp: 0, hc: 0, production: 0, surplus: 0 };
 let powerThreshold = parseInt(localStorage.getItem('powerThreshold') || '3000', 10);
 let currentData = {
     currentPower: 0,
+    currentSolarPower: 0,
     surplus: 0,
     productionToday: 0,
     todayConsumption: 0,
@@ -678,6 +680,7 @@ const fetchAllData = async () => {
         // --- Current states ---
         const m = data.main;
         currentData.currentPower = m[SENSORS.entities.currentPower] ?? 0;
+        currentData.currentSolarPower = m[SENSORS.entities.solarProduction] ?? 0;
         currentData.surplus = Math.max(0, m[SENSORS.entities.surplus] || 0);
         currentData.productionToday = m[SENSORS.entities.productionToday] || 0;
         currentData.todayConsumption = (m[SENSORS.entities.hp] || 0) + (m[SENSORS.entities.hc] || 0);
@@ -731,6 +734,76 @@ const fetchAllData = async () => {
         alert('Erreur lors de la récupération des données. Vérifie ta connexion à Home Assistant.');
     } finally {
         hideLoading();
+    }
+};
+
+// ===== Solar Flow Visualization =====
+const updateSolarArc = () => {
+    const sun      = document.getElementById('arc-sun');
+    if (!sun) return;
+    const sunGlow  = document.getElementById('arc-sun-glow');
+    const sunProd  = document.getElementById('arc-sun-prod');
+    const moon     = document.getElementById('arc-moon');
+    const gridVal  = document.getElementById('arc-grid-val');
+    const houseVal = document.getElementById('arc-house-val');
+    const solarVal = document.getElementById('arc-solar-val');
+    const flowGrid  = document.getElementById('flow-grid');
+    const flowSolar = document.getElementById('flow-solar');
+
+    const now  = new Date();
+    const hour = now.getHours() + now.getMinutes() / 60;
+    const SUNRISE = 7, SUNSET = 20;
+    const t = (hour - SUNRISE) / (SUNSET - SUNRISE);
+    const isDay = t >= 0 && t <= 1;
+
+    if (isDay) {
+        const x = (1-t)*(1-t)*30 + 2*t*(1-t)*300 + t*t*570;
+        const y = (1-t)*(1-t)*76 + 2*t*(1-t)*8  + t*t*76;
+        sun.setAttribute('cx', x.toFixed(1));
+        sun.setAttribute('cy', y.toFixed(1));
+        sunGlow.setAttribute('cx', x.toFixed(1));
+        sunGlow.setAttribute('cy', y.toFixed(1));
+        sunProd.setAttribute('x', x.toFixed(1));
+        sunProd.setAttribute('y', (y - 15).toFixed(1));
+        sun.setAttribute('opacity', '1');
+        sunGlow.classList.add('sun-active');
+        moon.setAttribute('opacity', '0');
+
+        const sp = currentData.currentSolarPower || 0;
+        if (sp > 5) {
+            sunProd.setAttribute('opacity', '1');
+            sunProd.textContent = sp >= 1000 ? `${(sp/1000).toFixed(1)} kW` : `${Math.round(sp)} W`;
+        } else {
+            sunProd.setAttribute('opacity', '0');
+        }
+    } else {
+        sun.setAttribute('opacity', '0');
+        sunGlow.classList.remove('sun-active');
+        sunProd.setAttribute('opacity', '0');
+        moon.setAttribute('opacity', '1');
+    }
+
+    const cp = currentData.currentPower || 0;
+    const sp = currentData.currentSolarPower || 0;
+    const homeLoad = Math.max(0, sp + cp);
+    const fmtW = w => {
+        const abs = Math.abs(w);
+        return abs >= 1000 ? `${(abs/1000).toFixed(1)} kW` : `${Math.round(abs)} W`;
+    };
+
+    if (gridVal)  gridVal.textContent  = fmtW(cp);
+    if (houseVal) houseVal.textContent = fmtW(homeLoad);
+    if (solarVal) solarVal.textContent = sp > 5 ? fmtW(sp) : '--';
+
+    if (flowGrid) {
+        if (Math.abs(cp) < 5) {
+            flowGrid.className = 'flow-line flow-inactive';
+        } else {
+            flowGrid.className = cp > 0 ? 'flow-line' : 'flow-line flow-reverse';
+        }
+    }
+    if (flowSolar) {
+        flowSolar.className = sp > 5 ? 'flow-line flow-reverse' : 'flow-line flow-inactive';
     }
 };
 
@@ -830,6 +903,9 @@ const updateUI = () => {
 
     // Mix chart
     updateMixChart();
+
+    // Solar arc
+    updateSolarArc();
 
     // Update time
     const now = new Date();
