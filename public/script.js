@@ -772,9 +772,9 @@ const updateSolarArc = () => {
     const isDay = t >= 0 && t <= 1;
 
     if (isDay) {
-        // Quadratic bezier P0=(80,128) P1=(380,12) P2=(680,128)
-        const x = (1-t)*(1-t)*80  + 2*t*(1-t)*380 + t*t*680;
-        const y = (1-t)*(1-t)*128 + 2*t*(1-t)*12  + t*t*128;
+        // Quadratic bezier P0=(160,128) P1=(760,12) P2=(1360,128)
+        const x = (1-t)*(1-t)*160  + 2*t*(1-t)*760 + t*t*1360;
+        const y = (1-t)*(1-t)*128  + 2*t*(1-t)*12  + t*t*128;
 
         sun.setAttribute('cx', x.toFixed(1));
         sun.setAttribute('cy', y.toFixed(1));
