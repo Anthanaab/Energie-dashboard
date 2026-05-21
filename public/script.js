@@ -816,25 +816,26 @@ const updateSolarArc = () => {
         statusEl.setAttribute('fill', color);
     }
 
-    // Flux : couleur verte quand export (house→grid), bleue pour import, ambrée pour solaire→maison
+    // Flux : setAttribute requis pour SVG (className non fiable sur éléments SVG)
+    // Couleur verte quand export (house→grid), bleue pour import, ambrée pour solaire→maison
     if (flowGrid) {
         if (Math.abs(cp) < 50) {
-            flowGrid.className = 'flow-line flow-inactive';
+            flowGrid.setAttribute('class', 'flow-line flow-inactive');
             flowGrid.style.stroke = 'rgba(129,140,248,0.92)';
         } else if (isImporting) {
-            flowGrid.className = 'flow-line';
+            flowGrid.setAttribute('class', 'flow-line');
             flowGrid.style.stroke = 'rgba(129,140,248,0.92)';
         } else {
-            flowGrid.className = 'flow-line flow-reverse';
+            flowGrid.setAttribute('class', 'flow-line flow-reverse');
             flowGrid.style.stroke = 'rgba(52,211,153,0.92)';
         }
     }
     if (flowSolar) {
         if (sp > 5 || isExporting) {
-            flowSolar.className = 'flow-line flow-reverse';
+            flowSolar.setAttribute('class', 'flow-line flow-reverse');
             flowSolar.style.stroke = 'rgba(251,191,36,0.92)';
         } else {
-            flowSolar.className = 'flow-line flow-inactive';
+            flowSolar.setAttribute('class', 'flow-line flow-inactive');
         }
     }
 };
