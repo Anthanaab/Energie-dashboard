@@ -124,10 +124,10 @@
                     <path d="M80,128 Q380,12 680,128" fill="none"
                           stroke="url(#arc-grad)" stroke-width="1.8" stroke-dasharray="4 6"/>
 
-                    <!-- Time labels -->
-                    <text x="80"  y="142" fill="rgba(148,163,184,0.5)"  font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">07:00</text>
-                    <text x="380" y="142" fill="rgba(148,163,184,0.28)" font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">13:30</text>
-                    <text x="680" y="142" fill="rgba(148,163,184,0.5)"  font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">20:00</text>
+                    <!-- Time labels (mis à jour dynamiquement depuis sun.sun) -->
+                    <text id="arc-time-rise"   x="80"  y="142" fill="rgba(148,163,184,0.5)"  font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">07:00</text>
+                    <text id="arc-time-noon"   x="380" y="142" fill="rgba(148,163,184,0.28)" font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">--:--</text>
+                    <text id="arc-time-set"    x="680" y="142" fill="rgba(148,163,184,0.5)"  font-size="8.5" text-anchor="middle" font-family="Inter,sans-serif">20:00</text>
 
                     <!-- Sun: large haze, pulsing glow, rays, core -->
                     <circle id="arc-sun-haze" cx="380" cy="70" r="38" fill="url(#sun-haze-grad)" opacity="0"/>

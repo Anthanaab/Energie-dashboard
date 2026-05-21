@@ -42,6 +42,7 @@ const SENSORS = {
 // ===== State Variables =====
 let energyChart, powerChart, waterChart, mixChart;
 let prevData = { hp: 0, hc: 0, production: 0, surplus: 0 };
+let sunTimes = { sunrise: 7, sunset: 20 }; // mis à jour depuis sun.sun via /api/weather
 let powerThreshold = parseInt(localStorage.getItem('powerThreshold') || '3000', 10);
 let currentData = {
     currentPower: 0,
@@ -227,6 +228,8 @@ const fetchWeather = async () => {
     try {
         const data = await fetchHA('weather');
         if (!data || data.error) return;
+        if (data.sunrise != null) sunTimes.sunrise = data.sunrise;
+        if (data.sunset  != null) sunTimes.sunset  = data.sunset;
         const { icon, desc } = haConditionToInfo(data.condition);
         const uv = data.uv_index;
         const uvPct = uv != null ? Math.min(100, (uv / 11) * 100).toFixed(0) : null;
@@ -752,10 +755,19 @@ const updateSolarArc = () => {
     const solarVal = document.getElementById('arc-solar-val');
     const flowGrid  = document.getElementById('flow-grid');
     const flowSolar = document.getElementById('flow-solar');
+    const timeRise  = document.getElementById('arc-time-rise');
+    const timeNoon  = document.getElementById('arc-time-noon');
+    const timeSet   = document.getElementById('arc-time-set');
 
     const now  = new Date();
     const hour = now.getHours() + now.getMinutes() / 60;
-    const SUNRISE = 7, SUNSET = 20;
+    const SUNRISE = sunTimes.sunrise, SUNSET = sunTimes.sunset;
+
+    // Mise à jour des labels horaires
+    const fmtH = h => { const hh = Math.floor(h); const mm = Math.round((h - hh) * 60); return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`; };
+    if (timeRise) timeRise.textContent = fmtH(SUNRISE);
+    if (timeSet)  timeSet.textContent  = fmtH(SUNSET);
+    if (timeNoon) timeNoon.textContent = fmtH((SUNRISE + SUNSET) / 2);
     const t = (hour - SUNRISE) / (SUNSET - SUNRISE);
     const isDay = t >= 0 && t <= 1;
 

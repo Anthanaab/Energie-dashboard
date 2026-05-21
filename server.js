@@ -132,8 +132,14 @@ app.get('/api/states', async (req, res) => {
 app.get('/api/weather', async (req, res) => {
     const entityId = process.env.WEATHER_ENTITY || 'weather.pirateweather';
     try {
-        const response = await haClient.get(`/states/${entityId}`);
-        const s = response.data;
+        const [weatherRes, sunRes] = await Promise.all([
+            haClient.get(`/states/${entityId}`),
+            haClient.get('/states/sun.sun')
+        ]);
+        const s = weatherRes.data;
+        const sun = sunRes.data.attributes;
+        // On extrait uniquement l'heure (le jour importe peu — l'écart J/J+1 est < 2 min)
+        const toH = iso => { const d = new Date(iso); return d.getHours() + d.getMinutes() / 60; };
         res.json({
             condition: s.state,
             temperature: s.attributes.temperature,
@@ -143,6 +149,8 @@ app.get('/api/weather', async (req, res) => {
             humidity: s.attributes.humidity,
             uv_index: s.attributes.uv_index,
             pressure: s.attributes.pressure,
+            sunrise: toH(sun.next_rising),
+            sunset:  toH(sun.next_setting),
             source: 'ha'
         });
     } catch (error) {
