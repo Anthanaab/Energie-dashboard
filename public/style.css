@@ -877,19 +877,18 @@ body::after {
 
 /* ===== Solar Flow Visualization ===== */
 .solar-flow-viz {
-    margin-top: 16px;
-    border-radius: 12px;
+    margin-top: 14px;
     overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    margin-left: -4px;
+    margin-right: -4px;
 }
 
 #solar-arc-svg {
     width: 100%;
     height: auto;
     display: block;
-    max-height: 200px;
-    border-radius: 12px;
-    overflow: hidden;
+    max-height: 205px;
 }
 
 .flow-line {

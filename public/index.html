@@ -48,12 +48,35 @@
             <div class="solar-flow-viz" id="solar-flow-viz">
                 <svg id="solar-arc-svg" viewBox="0 0 760 215" preserveAspectRatio="xMidYMid meet">
                     <defs>
+                        <!-- Sky: matches header dark navy at all edges → seamless blend -->
                         <linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%"   stop-color="#06101f"/>
-                            <stop offset="40%"  stop-color="#0b2040"/>
-                            <stop offset="75%"  stop-color="#0f2a52"/>
-                            <stop offset="100%" stop-color="#091a33"/>
+                            <stop offset="0%"   stop-color="#070d1a"/>
+                            <stop offset="25%"  stop-color="#0b1f40"/>
+                            <stop offset="55%"  stop-color="#0e2750"/>
+                            <stop offset="82%"  stop-color="#091a36"/>
+                            <stop offset="100%" stop-color="#070d1a"/>
                         </linearGradient>
+                        <!-- Left/right edge vignette: hides hard rectangle corners -->
+                        <linearGradient id="lr-fade" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%"   stop-color="#070d1a"/>
+                            <stop offset="7%"   stop-color="rgba(7,13,26,0)"/>
+                            <stop offset="93%"  stop-color="rgba(7,13,26,0)"/>
+                            <stop offset="100%" stop-color="#070d1a"/>
+                        </linearGradient>
+                        <!-- Bottom fade: replaces hard ground strip -->
+                        <linearGradient id="gnd-fade" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%"   stop-color="rgba(4,9,20,0)"/>
+                            <stop offset="100%" stop-color="rgba(4,9,20,0.72)"/>
+                        </linearGradient>
+                        <!-- Icon halos -->
+                        <radialGradient id="blue-halo" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%"   stop-color="rgba(99,102,241,0.13)"/>
+                            <stop offset="100%" stop-color="rgba(99,102,241,0)"/>
+                        </radialGradient>
+                        <radialGradient id="amber-halo" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%"   stop-color="rgba(251,191,36,0.13)"/>
+                            <stop offset="100%" stop-color="rgba(251,191,36,0)"/>
+                        </radialGradient>
                         <linearGradient id="arc-grad" x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%"   stop-color="rgba(251,191,36,0.18)"/>
                             <stop offset="50%"  stop-color="rgba(251,191,36,0.55)"/>
@@ -79,11 +102,14 @@
                         </filter>
                     </defs>
 
-                    <!-- Sky background -->
+                    <!-- Backgrounds -->
                     <rect width="760" height="215" fill="url(#sky-grad)"/>
-                    <!-- Ground strip -->
-                    <rect x="0" y="172" width="760" height="43" fill="rgba(5,12,28,0.65)"/>
-                    <line x1="0" y1="172" x2="760" y2="172" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                    <rect width="760" height="215" fill="url(#lr-fade)"/>
+                    <rect x="0" y="150" width="760" height="65" fill="url(#gnd-fade)"/>
+                    <line x1="50" y1="172" x2="710" y2="172" stroke="rgba(255,255,255,0.04)" stroke-width="0.8"/>
+                    <!-- Icon halos -->
+                    <ellipse cx="80"  cy="82" rx="54" ry="60" fill="url(#blue-halo)"/>
+                    <ellipse cx="680" cy="82" rx="54" ry="60" fill="url(#amber-halo)"/>
 
                     <!-- Header: title + status -->
                     <text x="18" y="21" fill="rgba(148,163,184,0.5)" font-size="9" font-weight="700"
@@ -120,8 +146,13 @@
                     <!-- Moon (night) -->
                     <text id="arc-moon" x="380" y="68" font-size="24" text-anchor="middle" opacity="0">🌙</text>
 
+                    <!-- Connector lines: icon base → node dot -->
+                    <line x1="80"  y1="88"  x2="80"  y2="151" stroke="rgba(99,102,241,0.18)"  stroke-width="1" stroke-dasharray="2 4"/>
+                    <line x1="380" y1="132" x2="380" y2="151" stroke="rgba(241,245,249,0.15)" stroke-width="1" stroke-dasharray="2 4"/>
+                    <line x1="680" y1="96"  x2="680" y2="151" stroke="rgba(251,191,36,0.18)"  stroke-width="1" stroke-dasharray="2 4"/>
+
                     <!-- ===== LEFT: Tour Haute Tension (Réseau) ===== -->
-                    <g transform="translate(80,88)" opacity="0.65">
+                    <g transform="translate(80,88)" opacity="0.78">
                         <line x1="0"   y1="-52" x2="0"   y2="0"   stroke="#64748b" stroke-width="2"/>
                         <line x1="-17" y1="-46" x2="17"  y2="-46" stroke="#64748b" stroke-width="2"/>
                         <line x1="-13" y1="-40" x2="13"  y2="-40" stroke="#5a6a7e" stroke-width="1.5"/>
@@ -180,7 +211,7 @@
                     <text id="arc-house-val" x="380" y="185" fill="#f1f5f9" font-size="10.5" font-weight="700" text-anchor="middle" font-family="Inter,sans-serif">--</text>
 
                     <!-- ===== RIGHT: Rack de panneaux solaires ===== -->
-                    <g transform="translate(680,88)" opacity="0.72">
+                    <g transform="translate(680,88)" opacity="0.85">
                         <!-- Supports -->
                         <line x1="-14" y1="-3" x2="-14" y2="8"  stroke="rgba(251,191,36,0.32)" stroke-width="1.5"/>
                         <line x1="14"  y1="-3" x2="14"  y2="8"  stroke="rgba(251,191,36,0.32)" stroke-width="1.5"/>
