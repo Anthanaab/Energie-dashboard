@@ -888,7 +888,7 @@ body::after {
     width: 100%;
     height: auto;
     display: block;
-    max-height: 205px;
+    max-height: 280px;
 }
 
 .flow-line {
