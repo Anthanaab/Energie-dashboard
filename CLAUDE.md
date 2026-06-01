@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`energie-dashboard` — a Node.js/Express proxy server + vanilla JS frontend that displays real-time energy data from a local Home Assistant instance (Enphase Envoy solar system + Ecojoko smart meter + smart plugs). Includes an Eau (water) tab.
+`energie-dashboard` — a Node.js/Express server + vanilla JS frontend that displays energy data from a local Home Assistant instance (Enphase Envoy solar + Ecojoko smart meter + smart plugs). Includes an Eau (water) tab, weather widget, animated solar flow, mix chart, CO₂/net-balance stats, period comparison and CSV export. **A background poller collects HA data into a local SQLite DB; the frontend reads computed values from the DB, not HA directly** (live weather/sun are the only direct HA reads).
 
 ## Commands
 
 ```bash
 cd energie-dashboard
 
-# Install dependencies
+# Install dependencies (better-sqlite3 is a native module — see dev note)
 npm install
 
 # Run (production)
@@ -21,24 +21,37 @@ npm start          # node server.js on port 3000
 npm run dev        # nodemon server.js
 ```
 
-No build step, no test suite.
+No build step. Pure compute logic lives in `compute.js` and is unit-testable without the DB.
+
+⚠️ **Dev local & Node version:** `better-sqlite3` ships prebuilt binaries for Node LTS (18/20/22). On bleeding-edge Node (e.g. 25) there's no prebuild → `npm install` tries to compile (needs Visual Studio build tools on Windows). For local dev use **Node 20 LTS**, or rely on Docker (`node:20-slim`).
 
 ## Architecture
 
 ```
 energie-dashboard/
-  server.js          # Express proxy: forwards /api/* requests to Home Assistant
+  server.js     # Express: serves frontend + read endpoints (reads SQLite, computes values) + /api/weather (live HA)
+  poller.js     # Background loop: polls HA every 30s → SQLite ; backfills HA history on boot
+  db.js         # SQLite access (better-sqlite3): schema, read/write, retention
+  compute.js    # Pure calc helpers (deltas, cumulative, downsampling) — no native dep, testable
+  sensors.js    # Single source of truth for all HA entity IDs (used by poller + server)
   public/
-    index.html       # Single-page dashboard (French UI) — Énergie + Eau tabs
-    script.js        # All frontend logic: data fetching, Chart.js, DOM updates
-    style.css        # Dark theme styling
+    index.html  # Single-page dashboard (French UI) — Énergie + Eau tabs
+    script.js   # Display layer: fetches computed values + live weather, renders Chart.js + DOM
+    style.css   # Glassmorphism dark theme
 ```
 
-**Proxy architecture:** `script.js` calls `/api/*` on the local Express server, which forwards to Home Assistant with the token. The token never reaches the browser.
+**Data flow:** `poller.js` reads HA every 30s and writes raw `(entity_id, ts, value)` rows to SQLite. The server endpoints read that continuous series and compute period deltas/curves **server-side** at full resolution. The frontend reads those computed scalars + downsampled chart series; it no longer computes deltas. The HA token never reaches the browser, and the dashboard stays up if HA is down (serves last stored data).
 
-**Batch endpoint:** The frontend primarily uses `/api/all-energy-data?period=X` which returns all current states, device data (with period energy deltas), and history in a single call (~33 individual calls → 1).
+**Why a DB:** recomputing from HA's live history every refresh caused inconsistencies (variable history windows, recorder purge on 7j/30j, partial fetches, midnight-reset edge cases). Owning a continuous local series removes those root causes.
 
-**Configuration:** `HA_URL` and `HA_TOKEN` are required environment variables — no hardcoded fallback. `server.js` exits at startup if either is missing. `public/script.js` holds `HA_CONFIG` with pricing only:
+**Endpoints:**
+- `GET /api/all-energy-data?period=X` (reads DB) → `{ main:{currentPower,currentSolarPower}, period:{hp,hc,surplus,production,peakPower}, prev:{hp,hc,production,surplus}, devices:[{name,energy,power}], history:{timestamps,consumption,production,power} }`. `period.*` are accurate scalars; `history.*` are downsampled (150 pts) for charts; `prev` is the previous same-length period for comparison badges.
+- `GET /api/water-data?period=X` (reads DB) → `{ liters, history:{timestamps,liters} }`
+- `GET /api/weather` (live HA passthrough) → Pirate Weather state + sun.sun rise/set hours
+- `GET /api/status` → `{ ok, readings, db }` (debug)
+- `period` ∈ `hour|day|week|month`.
+
+**Configuration:** `HA_URL` and `HA_TOKEN` are required env vars — no hardcoded fallback; `server.js` exits if missing. Other env: `DB_PATH` (default `/data/energie.db`), `POLL_INTERVAL_MS` (30000), `RETENTION_DAYS` (365), `BACKFILL_DAYS` (30), `WEATHER_ENTITY` (`weather.pirateweather`). `public/script.js` holds `HA_CONFIG` with pricing only:
 ```js
 const HA_CONFIG = {
     priceHP: 0.1876,    // €/kWh heures pleines
@@ -51,78 +64,60 @@ const HA_CONFIG = {
 ## Key details
 
 - Home Assistant at `http://192.168.40.214:8123`; server listens on `0.0.0.0:3000`
-- Energy sensors: Enphase Envoy (`sensor.envoy_122303081421_*`) + Ecojoko (`sensor.ecojoko_*`)
-- Device sensors: 10 smart plugs (`sensor.prise_*`, `sensor.garage_prise_*`), each with `_energy` and `_power` variants
-- Water sensor: `sensor.consommation_eau_totale`
 - Charts use Chart.js 4.4 + luxon adapter (loaded from CDN)
-- Auto-refresh: configurable interval (10s/30s/1min/5min) with enable/disable toggle
+- Auto-refresh: configurable interval (10s/30s/1min/5min) with enable/disable toggle. **Note:** display refresh ≠ data freshness — data is only as fresh as the last poll (≤30s).
 - Numbers formatted with French locale (comma as decimal separator)
 - `window.HADashboard` is exposed on the global for browser-console debugging
 
-## Sensor configuration
+## Sensors (`sensors.js` — single source of truth)
 
-Sensor definitions are in `server.js` (the `/api/all-energy-data` endpoint) and `public/script.js` (`SENSORS` object). Both must be kept in sync when adding/removing sensors.
+```
+MAIN.hp           = sensor.ecojoko_consommation_hp_reseau          (kWh import HP, reset minuit)
+MAIN.hc           = sensor.ecojoko_consommation_hc_reseau          (kWh import HC, reset minuit)
+MAIN.surplus      = sensor.surplus_de_production_positif           (kWh injecté réseau, POSITIF, reset minuit)
+MAIN.production   = sensor.envoy_122303081421_production_d_energie_du_jour  (kWh prod solaire, reset minuit)
+MAIN.currentPower = sensor.ecojoko_consommation_temps_reel         (W instantané, PAS de reset, négatif = export)
+MAIN.solarPower   = sensor.envoy_122303081421_current_power_production  (W prod solaire instantanée, flux solaire)
+WATER             = sensor.consommation_eau_totale                 (litres, reset minuit)
+DEVICES           = 10 prises (sensor.prise_* / garage_prise_*), chacune _energy + _power
+```
+
+Ajouter/retirer un capteur = éditer `sensors.js` uniquement (poller + serveur le partagent). L'ordre de `DEVICES` doit correspondre à l'ordre des icônes dans `SENSORS.devices` (script.js).
 
 ### Sensor gotchas
 
-- **Enphase lifetime sensors are in MWh**, not kWh → multiply delta by 1000
-  - `sensor.envoy_122303081421_lifetime_net_energy_consumption` = **grid net** (import − export), NOT total home load. In MWh. When exporting > importing, the delta is negative.
-  - `sensor.envoy_122303081421_lifetime_net_energy_production` = total solar produced, in MWh
-- **Ecojoko HP/HC/surplus sensors reset daily at midnight** → use `historyDeltaWithResets()` to sum across resets for multi-day periods
-- **HA history API defaults to 24h** without `end_time` param → always pass `end_time=now` in history calls
-- **Ecojoko `sensor.ecojoko_consommation_temps_reel`** (current power W) can go negative during solar export → displayed raw (negative = export en cours), do NOT clip to 0
-- **Ecojoko `sensor.ecojoko_surplus_de_production`** (kWh, total_increasing) can go negative at night and resets daily at midnight.
-  → Uses `historyDeltaWithResetsAbs()` to handle negative values + daily resets for multi-day periods
-- **Water `sensor.consommation_eau_totale`** resets daily at midnight. Uses `historyDeltaWithResets()` for period calculation.
-  ⚠️ **Limitation:** For 7j/30j periods, if HA's recorder purges data (default ~7-10 days), the calculated delta will be incomplete.
-  **Fix:** Increase `purge_keep_days` in `configuration.yaml`:
-  ```yaml
-  recorder:
-    purge_keep_days: 30
-  ```
-  Then restart HA. Wait 24-48h for full 30-day data to accumulate.
+- **Tous les compteurs d'énergie se remettent à zéro à minuit** (HP, HC, surplus, production, eau, prises) → deltas via `deltaWithResets()` (somme des segments entre resets ; = `last − first` si monotone, donc sûr partout).
+- **`MAIN.currentPower`** (W) n'a pas de reset, peut être négatif lors d'export → stocké/affiché brut (négatif = export), on ne clippe PAS.
+- **Le surplus est déjà positif** (`sensor.surplus_de_production_positif`) → plus de bricolage en valeur absolue.
+- **On n'utilise plus le net Enphase** (`lifetime_net_energy_consumption`, MWh, import−export) — source d'incohérences. La conso maison est dérivée de HP/HC/prod/surplus.
+- **Recorder purge HA** : n'impacte plus que le *backfill initial* (≈30 derniers jours dispo dans HA). Ensuite la série locale grossit en continu et n'est purgée qu'après `RETENTION_DAYS` → 7j/30j fiables sans toucher HA.
 
-## History helper functions
-
-Disponibles dans `script.js` (frontend) et sous forme `_hist*` dans `server.js` (pour les calculs côté serveur) :
+## Compute helpers (`compute.js`, pure & testées)
 
 ```js
-// Simple delta: last - first (for monotonically increasing sensors like Enphase lifetime)
-historyDelta(history)
-
-// Same but allows negative delta (for Enphase net consumption which decreases when exporting)
-historyDeltaSigned(history)
-
-// Reset-aware delta: sums segments across daily resets (for HP, HC)
-historyDeltaWithResets(history)
-
-// Reset-aware delta for negative sensors: converts to absolute values before summing segments
-// Use for Ecojoko surplus sensor which sends negative values and resets daily at midnight
-historyDeltaWithResetsAbs(history)
-
-// Fetch history for a given period ('hour'|'day'|'week'|'month')
-// Always passes end_time=now to avoid HA's 24h default cap
-getHistory(entityId, period)
+deltaWithResets(rows)              // somme reset-aware (= last-first si monotone)
+peak(rows)                         // max d'un capteur instantané
+buildCumulative(rows)              // cumul reset-aware point par point [{ts,cum}]
+cumulativeAtEdges(rows, edges)     // échantillonne le cumul aux bornes de temps
+instantAtEdges(rows, edges)        // moyenne d'un capteur instantané par bucket
+makeEdges(since, until, points)    // génère N bornes de temps régulières
 ```
-
-Les mêmes fonctions existent côté serveur sous les noms `_histDelta`, `_histDeltaWithResets`, `_histDeltaWithResetsAbs` — utilisées pour calculer les deltas de la période précédente dans `/api/all-energy-data`.
+`rows` = `[{ts, value}]` triés par `ts` croissant (epoch secondes). `db.js` réexporte ces helpers.
 
 ## Auto-consumption & self-sufficiency
 
-Calculated from surplus sensor, not from Enphase vs Ecojoko delta comparison (which drifts):
+Calculé à partir de production/surplus (pas de comparaison Enphase/Ecojoko qui dérive). Le serveur renvoie les kWh bruts ; le frontend dérive `selfConsumed`, les % et les coûts :
 
 ```
-selfConsumed       = production − surplus_injecté
-auto-consommation  = selfConsumed / production × 100      (% de la prod utilisée localement)
+selfConsumed       = max(0, production − surplus_injecté)
+consoMaison        = HP + HC + selfConsumed
+auto-consommation  = selfConsumed / production × 100              (% de la prod utilisée localement)
 autosuffisance     = selfConsumed / (HP + HC + selfConsumed) × 100  (% de la conso couverte par solaire)
 ```
 
-### Surplus calculation
+### Surplus
 
-Le surplus est lu directement depuis `sensor.ecojoko_surplus_de_production` via `historyDeltaWithResetsAbs()`.
-Ce capteur envoie des valeurs négatives et se remet à zéro à minuit chaque jour.
-La fonction `historyDeltaWithResetsAbs()` convertit chaque valeur en absolu avant de sommer les segments,
-ce qui permet d'obtenir un delta correct sur toutes les périodes (1h, 24h, 7j, 30j).
+Lu depuis `sensor.surplus_de_production_positif` (déjà positif, reset minuit) via `deltaWithResets()` sur la série SQLite → delta correct sur toutes les périodes.
 
 ## UI layout (Énergie tab)
 
@@ -180,10 +175,11 @@ ce qui permet d'obtenir un delta correct sur toutes les périodes (1h, 24h, 7j, 
 - **URL prod:** `http://192.168.50.69:3000`
 
 ### Config Docker
-- `docker-compose.yml` utilise `${HA_URL}` et `${HA_TOKEN}` (sans fallback)
-- Les valeurs sont à saisir dans **Portainer → Stacks → energie-dashboard → Environment variables**
-- `server.js` plante au démarrage si l'une des deux variables est absente
-- Le token ne doit jamais être committé dans le code
+- Image `node:20-slim` (Debian/glibc) — requis pour `better-sqlite3` (module natif). Le Dockerfile installe `python3 make g++` au cas où aucun prebuild ne correspond.
+- `docker-compose.yml` utilise `${HA_URL}` et `${HA_TOKEN}` (sans fallback) → à saisir dans **Portainer → Stacks → energie-dashboard → Environment variables**
+- `server.js` plante au démarrage si l'une des deux variables est absente ; le token ne doit jamais être committé
+- **Volume nommé `energie-data` monté sur `/data`** → persiste la base SQLite entre les redeploys. ⚠️ Ne pas supprimer ce volume (perte de l'historique accumulé).
+- Autres env (défauts dans `docker-compose.yml`) : `DB_PATH=/data/energie.db`, `POLL_INTERVAL_MS=30000`, `RETENTION_DAYS=365`
 
 ### Développement local (sans Docker)
 Créer un fichier `.env` à la racine (déjà dans `.gitignore`), voir `.env.example` :

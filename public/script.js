@@ -6,25 +6,10 @@ const HA_CONFIG = {
     priceWater: 4.82    // €/m³
 };
 
-// ===== Sensors Configuration =====
+// ===== Sensors (icônes uniquement — entity IDs et calculs sont côté serveur) =====
+// L'ordre doit correspondre à DEVICES dans sensors.js (le serveur renvoie les
+// appareils dans ce même ordre).
 const SENSORS = {
-    // Entity IDs for mapping server response (must match server.js)
-    entities: {
-        consumptionToday: 'sensor.envoy_122303081421_consommation_d_energie_du_jour',
-        lifetimeConsumption: 'sensor.envoy_122303081421_lifetime_net_energy_consumption',
-        lifetimeProduction: 'sensor.envoy_122303081421_lifetime_net_energy_production',
-        productionToday: 'sensor.envoy_122303081421_production_d_energie_du_jour',
-        currentPower: 'sensor.ecojoko_consommation_temps_reel',
-        surplus: 'sensor.ecojoko_surplus_de_production',
-        hp: 'sensor.ecojoko_consommation_hp_reseau',
-        hc: 'sensor.ecojoko_consommation_hc_reseau',
-        solarProduction: 'sensor.envoy_122303081421_current_power_production'
-    },
-    // Water sensor
-    water: {
-        total: 'sensor.consommation_eau_totale'
-    },
-    // Individual devices (name + icon only — data comes from server)
     devices: [
         { name: 'Rack', icon: '🖥️' },
         { name: 'TV', icon: '📺' },
@@ -54,7 +39,7 @@ let currentData = {
     periodHC: 0,
     periodSurplus: 0,
     periodProduction: 0,
-    periodConsumption: 0,
+    peakPower: 0,
     history: { consumption: [], production: [], power: [], timestamps: [] },
     devices: []
 };
@@ -110,25 +95,6 @@ const fetchHA = async (endpoint) => {
     }
 };
 
-const getHistory = async (entityId, period) => {
-    const now = new Date();
-    let startTime;
-    
-    switch (period) {
-        case 'hour': startTime = new Date(now.getTime() - 1 * 60 * 60 * 1000); break;
-        case 'day': startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
-        case 'week': startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
-        case 'month': startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
-        default: startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    }
-    
-    const startISO = toLocalISO(startTime);
-    const endISO = toLocalISO(now);
-
-    const data = await fetchHA(`history/period/${startISO}?filter=${entityId}&end_time=${endISO}`);
-    return data ? data[0] || [] : [];
-};
-
 const formatNumber = (num, decimals = 2) => {
     if (num === null || num === undefined) return '--';
     return num.toFixed(decimals).replace('.', ',');
@@ -144,59 +110,6 @@ const PERIOD_LABELS = {
     week: '7 Jours',
     month: '30 Jours'
 };
-
-const historyDelta = (history) => {
-    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
-    if (valid.length < 2) return 0;
-    return Math.max(0, parseFloat(valid[valid.length - 1].state) - parseFloat(valid[0].state));
-};
-
-// Même chose mais autorise les valeurs négatives (ex: net Enphase qui diminue quand export > import)
-const historyDeltaSigned = (history) => {
-    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
-    if (valid.length < 2) return 0;
-    return parseFloat(valid[valid.length - 1].state) - parseFloat(valid[0].state);
-};
-
-// Pour les capteurs qui se remettent à zéro (HP/HC journaliers)
-const historyDeltaWithResets = (history) => {
-    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
-    if (valid.length < 2) return 0;
-    let total = 0;
-    let segStart = parseFloat(valid[0].state);
-    for (let i = 1; i < valid.length; i++) {
-        const curr = parseFloat(valid[i].state);
-        const prev = parseFloat(valid[i - 1].state);
-        if (curr < prev) {
-            total += prev - segStart;
-            segStart = curr;
-        }
-    }
-    return Math.max(0, total + parseFloat(valid[valid.length - 1].state) - segStart);
-};
-
-// Pour les capteurs négatifs qui se remettent à zéro (ex: surplus Ecojoko)
-const historyDeltaWithResetsAbs = (history) => {
-    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
-    if (valid.length < 2) return 0;
-    let total = 0;
-    let segStart = Math.abs(parseFloat(valid[0].state));
-    for (let i = 1; i < valid.length; i++) {
-        const curr = Math.abs(parseFloat(valid[i].state));
-        const prev = Math.abs(parseFloat(valid[i - 1].state));
-        if (curr < prev) {
-            total += prev - segStart;
-            segStart = curr;
-        }
-    }
-    return Math.max(0, total + Math.abs(parseFloat(valid[valid.length - 1].state)) - segStart);
-};
-
-const toLocalISO = (date) => {
-    const p = n => String(n).padStart(2, '0');
-    return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
-};
-
 
 // ===== Météo (Pirate Weather via HA) =====
 const haConditionToInfo = (condition) => {
@@ -560,42 +473,14 @@ const updateMixChart = () => {
     mixChart.update('smooth');
 };
 
-// Calcule les valeurs cumulées d'un historique qui se remet à zéro (ex: compteur eau)
-const historyCumulative = (history) => {
-    const valid = history.filter(h => !isNaN(parseFloat(h.state)));
-    if (valid.length === 0) return { values: [], labels: [] };
-
-    const nums = valid.map(h => parseFloat(h.state));
-    const cumulative = [0];
-    let cumul = 0;
-    let segStart = nums[0];
-
-    for (let i = 1; i < nums.length; i++) {
-        if (nums[i] < nums[i - 1]) {
-            cumul += nums[i - 1] - segStart;
-            segStart = nums[i];
-        }
-        cumulative.push(cumul + Math.max(0, nums[i] - segStart));
-    }
-
-    return {
-        values: cumulative,
-        labels: valid.map(h => formatDate(h.last_changed))
-    };
-};
-
-// ===== Fetch Water Data =====
+// ===== Fetch Water Data (depuis la DB via /api/water-data) =====
 const fetchWaterData = async (period) => {
     try {
-        const periodHistory = await getHistory(SENSORS.water.total, period);
+        const data = await fetchHA(`water-data?period=${period}`);
+        if (!data) return;
 
         const toM3 = (liters) => liters / 1000;
-
-        // Delta total avec gestion des resets (capteur journalier)
-        const waterPeriodL = historyDeltaWithResets(periodHistory);
-
-        // Graphique : accumulation cumulée avec gestion des resets
-        const { values: chartValues, labels: chartLabels } = historyCumulative(periodHistory);
+        const waterPeriodL = data.liters || 0;
 
         const lbl = PERIOD_LABELS[period];
         elements.labelWater.textContent = `Conso Eau ${lbl}`;
@@ -603,17 +488,15 @@ const fetchWaterData = async (period) => {
 
         // Heure/24h → L, 7j/30j → m³
         const useLiters = period === 'hour' || period === 'day';
-        const waterVal = useLiters ? waterPeriodL : toM3(waterPeriodL);
         const waterCost = toM3(waterPeriodL) * HA_CONFIG.priceWater;
-        const waterUnit = useLiters ? 'L' : 'm³';
 
-        elements.waterToday.textContent = useLiters ? formatNumber(waterPeriodL, 0) : formatNumber(waterVal, 3);
-        document.getElementById('water-unit').textContent = waterUnit;
+        elements.waterToday.textContent = useLiters ? formatNumber(waterPeriodL, 0) : formatNumber(toM3(waterPeriodL), 3);
+        document.getElementById('water-unit').textContent = useLiters ? 'L' : 'm³';
         elements.waterCostToday.textContent = formatNumber(waterCost, 2);
 
         if (waterChart) {
-            waterChart.data.labels = chartLabels;
-            waterChart.data.datasets[0].data = chartValues.map(v => toM3(v));
+            waterChart.data.labels = (data.history.timestamps || []).map(formatDate);
+            waterChart.data.datasets[0].data = (data.history.liters || []).map(toM3);
             waterChart.update('smooth');
         }
     } catch (error) {
@@ -674,57 +557,38 @@ const fetchAllData = async () => {
         currentData.periodHC = 0;
         currentData.periodSurplus = 0;
         currentData.periodProduction = 0;
-        currentData.periodConsumption = 0;
+        currentData.peakPower = 0;
         updateUI();
 
         const data = await fetchHA(`all-energy-data?period=${period}`);
         if (!data) throw new Error('No data from server');
 
-        // --- Current states ---
-        const m = data.main;
-        currentData.currentPower = m[SENSORS.entities.currentPower] ?? 0;
-        currentData.currentSolarPower = m[SENSORS.entities.solarProduction] ?? 0;
-        currentData.surplus = Math.max(0, m[SENSORS.entities.surplus] || 0);
-        currentData.productionToday = m[SENSORS.entities.productionToday] || 0;
-        currentData.todayConsumption = (m[SENSORS.entities.hp] || 0) + (m[SENSORS.entities.hc] || 0);
+        // --- États courants ---
+        currentData.currentPower = data.main.currentPower ?? 0;
+        currentData.currentSolarPower = data.main.currentSolarPower ?? 0;
 
-        // --- Device data with icons ---
-        currentData.devices = data.devices.map((d, i) => ({
+        // --- Scalaires de période (calculés côté serveur, pleine résolution) ---
+        currentData.periodHP = data.period.hp ?? 0;
+        currentData.periodHC = data.period.hc ?? 0;
+        currentData.periodSurplus = data.period.surplus ?? 0;
+        currentData.periodProduction = data.period.production ?? 0;
+        currentData.peakPower = data.period.peakPower ?? 0;
+
+        // --- Appareils (icônes côté client) ---
+        currentData.devices = (data.devices || []).map((d, i) => ({
             ...d,
             icon: SENSORS.devices[i]?.icon || ''
         }));
 
-        // --- History for charts ---
-        const h = data.history;
-        const parseH = arr => arr.map(e => { const v = parseFloat(e.state); return isNaN(v) ? null : v; });
-
-        const rawConsumption = parseH(h.consumption);
-        const rawProduction = parseH(h.production);
-        const firstConso = rawConsumption.find(v => v !== null) ?? 0;
-        const firstProd = rawProduction.find(v => v !== null) ?? 0;
-
+        // --- Séries graphiques (déjà en kWh cumulés / W, downsamplées par le serveur) ---
         currentData.history = {
-            consumption: rawConsumption.map(v => v !== null ? Math.max(0, (v - firstConso) * 1000) : null),
-            production: rawProduction.map(v => v !== null ? Math.max(0, (v - firstProd) * 1000) : null),
-            power: parseH(h.power).map(v => v !== null ? v : null),
-            timestamps: h.consumption.map(e => e.last_changed)
+            timestamps: data.history.timestamps || [],
+            consumption: data.history.consumption || [],
+            production: data.history.production || [],
+            power: data.history.power || []
         };
 
-        // --- Period deltas ---
-        const hpHistory = h.hp || [];
-        const hcHistory = h.hc || [];
-        const surplusHistory = h.surplus || [];
-        const consumptionHistory = h.consumption || [];
-        const productionHistory = h.production || [];
-
-        currentData.periodHP = historyDeltaWithResets(hpHistory);
-        currentData.periodHC = historyDeltaWithResets(hcHistory);
-        currentData.periodProduction = historyDelta(productionHistory) * 1000;
-        currentData.periodConsumption = historyDeltaSigned(consumptionHistory) * 1000;
-        // Surplus = réinjection réseau (capteur Ecojoko direct, valeurs négatives, reset journalier)
-        currentData.periodSurplus = historyDeltaWithResetsAbs(surplusHistory);
-
-        // Données période précédente
+        // --- Période précédente (comparaison) ---
         if (data.prev) prevData = data.prev;
 
         // Update UI
@@ -734,7 +598,6 @@ const fetchAllData = async () => {
 
     } catch (error) {
         console.error('Error fetching data:', error);
-        alert('Erreur lors de la récupération des données. Vérifie ta connexion à Home Assistant.');
     } finally {
         hideLoading();
     }
@@ -865,7 +728,6 @@ const updateUI = () => {
     const showHP = currentData.periodHP;
     const showHC = currentData.periodHC;
     const showProduction = currentData.periodProduction;
-    const showConsumption = currentData.periodConsumption;
     const showNetConsumption = showHP + showHC;
 
     const isExporting = currentData.currentPower < 0;
@@ -891,10 +753,8 @@ const updateUI = () => {
     elements.hpValue.textContent = formatNumber(showHP, 2);
     elements.hcValue.textContent = formatNumber(showHC, 2);
 
-    // Peak power (from history)
-    const validPowers = currentData.history.power.filter(v => v !== null);
-    const peakPower = validPowers.length > 0 ? Math.max(...validPowers) : 0;
-    elements.peakPower.textContent = formatNumber(peakPower, 0);
+    // Pic de puissance (calculé côté serveur sur la pleine résolution)
+    elements.peakPower.textContent = formatNumber(currentData.peakPower, 0);
 
     // Conso. Maison = réseau (HP+HC) + auto-consommation solaire
     // Plus précis que le net Enphase qui peut être négatif lors d'export important
@@ -1037,7 +897,7 @@ const applyAutoRefresh = () => {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
     if (!autoRefreshEnabled) return;
     const seconds = parseInt(elements.refreshIntervalSelect.value, 10);
-    autoRefreshTimer = setInterval(getCurrentRefreshFn, seconds * 1000);
+    autoRefreshTimer = setInterval(() => getCurrentRefreshFn()(), seconds * 1000);
 };
 
 const startAutoRefresh = () => {

@@ -9,3 +9,11 @@ services:
     environment:
       - HA_URL=${HA_URL}
       - HA_TOKEN=${HA_TOKEN}
+      - DB_PATH=/data/energie.db
+      - POLL_INTERVAL_MS=30000
+      - RETENTION_DAYS=365
+    volumes:
+      - energie-data:/data
+
+volumes:
+  energie-data:
