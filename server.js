@@ -218,6 +218,21 @@ app.get('/api/debug/series', (req, res) => {
     }
 });
 
+// ===== Admin : supprime les valeurs aberrantes d'un capteur =====
+// /api/admin/delete-above?entity=<id>&value=1000&confirm=yes
+app.get('/api/admin/delete-above', (req, res) => {
+    if (req.query.confirm !== 'yes') {
+        return res.status(400).json({ error: 'ajoute &confirm=yes pour confirmer' });
+    }
+    const entity = req.query.entity;
+    const value = parseFloat(req.query.value);
+    if (!entity || Number.isNaN(value)) {
+        return res.status(400).json({ error: 'paramètres requis : entity, value' });
+    }
+    const deleted = db.deleteAbove(entity, value);
+    res.json({ ok: true, entity, value, deleted });
+});
+
 // ===== Serve Frontend =====
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));

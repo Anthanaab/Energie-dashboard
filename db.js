@@ -70,6 +70,10 @@ const count = () => _count.get().n;
 const _purge = db.prepare('DELETE FROM readings WHERE ts < ?');
 const purgeBefore = (beforeTs) => _purge.run(beforeTs).changes;
 
+// Supprime les relevés d'un capteur au-dessus d'un seuil (nettoyage valeurs aberrantes)
+const _delAbove = db.prepare('DELETE FROM readings WHERE entity_id = ? AND value > ?');
+const deleteAbove = (entityId, threshold) => _delAbove.run(entityId, threshold).changes;
+
 module.exports = {
   db,
   insertReadings,
@@ -78,6 +82,7 @@ module.exports = {
   getOldestTs,
   count,
   purgeBefore,
+  deleteAbove,
   // Helpers de calcul (réexportés depuis compute.js, sans dépendance native)
   ...compute,
   DB_PATH,
