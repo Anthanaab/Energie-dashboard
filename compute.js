@@ -2,6 +2,25 @@
 // Opèrent sur des tableaux de relevés [{ts, value}] triés par ts croissant.
 // Isolées ici pour être testables sans le module natif SQLite.
 
+// Filtre anti-spike : retire les points isolés absurdement plus hauts que leurs
+// deux voisins (pic qui monte puis redescend = valeur corrompue du capteur/backfill).
+// Ne touche PAS aux montées légitimes (un point ≥ son voisin suivant n'est jamais
+// un spike) ni aux pics réels juste avant un reset.
+const sanitize = (rows, factor = 10, absMargin = 5) => {
+  if (rows.length < 3) return rows;
+  const out = [rows[0]];
+  for (let i = 1; i < rows.length - 1; i++) {
+    const prev = rows[i - 1].value;
+    const cur = rows[i].value;
+    const next = rows[i + 1].value;
+    const nb = Math.max(prev, next);
+    if (cur > nb * factor && cur - nb > absMargin) continue; // spike isolé → ignoré
+    out.push(rows[i]);
+  }
+  out.push(rows[rows.length - 1]);
+  return out;
+};
+
 // Somme reset-aware : pour un compteur qui peut se remettre à zéro (reset
 // journalier à minuit), additionne les segments. Pour un compteur monotone
 // (jamais de reset), équivaut à last - first.
@@ -83,6 +102,7 @@ const makeEdges = (since, until, points) => {
 };
 
 module.exports = {
+  sanitize,
   deltaWithResets,
   peak,
   buildCumulative,

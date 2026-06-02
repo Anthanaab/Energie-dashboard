@@ -95,6 +95,7 @@ Ajouter/retirer un capteur = éditer `sensors.js` uniquement (poller + serveur l
 ## Compute helpers (`compute.js`, pure & testées)
 
 ```js
+sanitize(rows)                     // retire les pics isolés corrompus (anti-spike)
 deltaWithResets(rows)              // somme reset-aware (= last-first si monotone)
 peak(rows)                         // max d'un capteur instantané
 buildCumulative(rows)              // cumul reset-aware point par point [{ts,cum}]
@@ -103,6 +104,8 @@ instantAtEdges(rows, edges)        // moyenne d'un capteur instantané par bucke
 makeEdges(since, until, points)    // génère N bornes de temps régulières
 ```
 `rows` = `[{ts, value}]` triés par `ts` croissant (epoch secondes). `db.js` réexporte ces helpers.
+
+⚠️ **Anti-spike :** le backfill HA peut contenir des valeurs aberrantes ponctuelles (ex: un point à 27008 kWh au milieu de journées à ~50). `sanitize()` retire un point isolé absurdement plus haut que ses deux voisins (montée puis redescente immédiate), sans toucher aux montées légitimes ni aux pics réels avant reset. **Appliqué à tous les compteurs d'énergie/eau** avant tout calcul de delta dans `server.js`. Endpoint de diagnostic dispo : `GET /api/debug/series?entity=<id>&period=month`.
 
 ## Auto-consumption & self-sufficiency
 

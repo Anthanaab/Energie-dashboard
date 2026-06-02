@@ -90,11 +90,12 @@ app.get('/api/all-energy-data', (req, res) => {
         const prevUntil = since;
         const prevSince = since - len;
 
-        // Lectures brutes (pleine résolution → deltas précis)
-        const hpRows      = db.getReadings(MAIN.hp, since, until);
-        const hcRows      = db.getReadings(MAIN.hc, since, until);
-        const surplusRows = db.getReadings(MAIN.surplus, since, until);
-        const prodRows    = db.getReadings(MAIN.production, since, until);
+        // Lectures brutes (pleine résolution → deltas précis).
+        // sanitize() retire les pics isolés corrompus (ex: valeur backfill aberrante).
+        const hpRows      = db.sanitize(db.getReadings(MAIN.hp, since, until));
+        const hcRows      = db.sanitize(db.getReadings(MAIN.hc, since, until));
+        const surplusRows = db.sanitize(db.getReadings(MAIN.surplus, since, until));
+        const prodRows    = db.sanitize(db.getReadings(MAIN.production, since, until));
         const powerRows   = db.getReadings(MAIN.currentPower, since, until);
 
         const hp         = db.deltaWithResets(hpRows);
@@ -110,16 +111,16 @@ app.get('/api/all-energy-data', (req, res) => {
         // Prises (top consommateurs)
         const devices = DEVICES.map(([energyId, powerId, name]) => ({
             name,
-            energy: db.deltaWithResets(db.getReadings(energyId, since, until)),
+            energy: db.deltaWithResets(db.sanitize(db.getReadings(energyId, since, until))),
             power: db.getLatest(powerId) ?? 0,
         }));
 
         // Période précédente (comparaison)
         const prev = {
-            hp:         db.deltaWithResets(db.getReadings(MAIN.hp, prevSince, prevUntil)),
-            hc:         db.deltaWithResets(db.getReadings(MAIN.hc, prevSince, prevUntil)),
-            production: db.deltaWithResets(db.getReadings(MAIN.production, prevSince, prevUntil)),
-            surplus:    db.deltaWithResets(db.getReadings(MAIN.surplus, prevSince, prevUntil)),
+            hp:         db.deltaWithResets(db.sanitize(db.getReadings(MAIN.hp, prevSince, prevUntil))),
+            hc:         db.deltaWithResets(db.sanitize(db.getReadings(MAIN.hc, prevSince, prevUntil))),
+            production: db.deltaWithResets(db.sanitize(db.getReadings(MAIN.production, prevSince, prevUntil))),
+            surplus:    db.deltaWithResets(db.sanitize(db.getReadings(MAIN.surplus, prevSince, prevUntil))),
         };
 
         // Séries graphiques (downsamplées)
@@ -154,7 +155,7 @@ app.get('/api/water-data', (req, res) => {
         const until = nowSec();
         const since = until - periodSeconds(period);
 
-        const rows = db.getReadings(WATER, since, until);
+        const rows = db.sanitize(db.getReadings(WATER, since, until));
         const liters = db.deltaWithResets(rows);
 
         const edges = db.makeEdges(since, until, CHART_POINTS);
