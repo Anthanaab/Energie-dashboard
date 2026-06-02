@@ -173,6 +173,50 @@ app.get('/api/status', (req, res) => {
     res.json({ ok: true, readings: db.count(), db: db.DB_PATH });
 });
 
+// ===== Debug : analyse d'une série (diagnostic over-count) =====
+// /api/debug/series?entity=<id>&period=month  (entity par défaut = production)
+app.get('/api/debug/series', (req, res) => {
+    try {
+        const entity = req.query.entity || MAIN.production;
+        const period = req.query.period || 'month';
+        const until = nowSec();
+        const since = until - periodSeconds(period);
+        const rows = db.getReadings(entity, since, until);
+
+        let upSum = 0, downSteps = 0, downMag = 0, zeros = 0;
+        for (let i = 1; i < rows.length; i++) {
+            const d = rows[i].value - rows[i - 1].value;
+            if (d > 0) upSum += d; else if (d < 0) { downSteps++; downMag += -d; }
+            if (rows[i].value === 0) zeros++;
+        }
+        // Découpage par jour (UTC) : max-min = production de la journée
+        const days = {};
+        for (const r of rows) {
+            const day = new Date(r.ts * 1000).toISOString().slice(0, 10);
+            (days[day] = days[day] || []).push(r.value);
+        }
+        const daily = Object.entries(days).map(([day, vs]) => ({
+            day, n: vs.length, min: Math.min(...vs), max: Math.max(...vs),
+            span: +(Math.max(...vs) - Math.min(...vs)).toFixed(3)
+        }));
+        const sumDailySpan = +daily.reduce((a, b) => a + b.span, 0).toFixed(3);
+
+        res.json({
+            entity, period, points: rows.length,
+            total_currentMethod: +db.deltaWithResets(rows).toFixed(3),
+            total_positiveIncrements: +upSum.toFixed(3),
+            sumDailySpan,        // référence robuste (somme des prod journalières)
+            downSteps, downMagnitude: +downMag.toFixed(3), zeros,
+            min: rows.length ? Math.min(...rows.map(r => r.value)) : null,
+            max: rows.length ? Math.max(...rows.map(r => r.value)) : null,
+            daily
+        });
+    } catch (error) {
+        console.error('Error in debug/series:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ===== Serve Frontend =====
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
