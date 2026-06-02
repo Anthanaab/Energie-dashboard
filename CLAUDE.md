@@ -137,8 +137,7 @@ Lu depuis `sensor.surplus_de_production_positif` (déjà positif, reset minuit) 
 ### Puissance Actuelle card
 - Affiche la valeur absolue du capteur `ecojoko_consommation_temps_reel`
 - Badge vert `↑ export` visible quand la valeur est négative (export solaire vers le réseau)
-- La carte passe en thème vert (`.exporting`), jaune (`.warning`), ou rouge (`.danger`) selon le seuil configurable
-- **Seuil d'alerte :** input `⚡ W` dans le header — sauvegardé dans `localStorage`. Jaune > seuil, rouge > seuil × 1,6
+- La carte passe en thème vert (`.exporting`) en mode export
 
 ### Conso. Maison
 - Calculé comme `HP + HC + selfConsumed` (selfConsumed = production − surplus injecté)

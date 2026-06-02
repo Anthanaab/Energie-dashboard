@@ -780,58 +780,6 @@ body::after {
 
 .solar-value { font-size: 0.85rem; font-weight: 600; color: #fbbf24; white-space: nowrap; }
 
-/* ===== Seuil d'alerte puissance ===== */
-.threshold-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    padding: 0 10px;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    transition: var(--transition);
-}
-
-.threshold-wrapper:focus-within {
-    border-color: rgba(245, 158, 11, 0.5);
-    background: rgba(255, 255, 255, 0.09);
-}
-
-.threshold-label { font-size: 0.82rem; }
-
-.threshold-input {
-    width: 58px;
-    padding: 10px 4px;
-    background: transparent;
-    border: none;
-    color: var(--light);
-    font-size: 0.88rem;
-    text-align: center;
-    -moz-appearance: textfield;
-}
-
-.threshold-input::-webkit-outer-spin-button,
-.threshold-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-
-.threshold-input:focus { outline: none; }
-.threshold-unit { font-size: 0.78rem; color: var(--gray); }
-
-.stat-card.featured.warning {
-    background: rgba(245, 158, 11, 0.1);
-    border-color: rgba(245, 158, 11, 0.4);
-    box-shadow: var(--shadow), 0 0 30px rgba(245, 158, 11, 0.18);
-    transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
-}
-
-.stat-card.featured.danger {
-    background: rgba(239, 68, 68, 0.12);
-    border-color: rgba(239, 68, 68, 0.45);
-    box-shadow: var(--shadow), 0 0 30px rgba(239, 68, 68, 0.2);
-    transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
-}
-
 /* ===== Badges comparaison période précédente ===== */
 .compare-better { color: #34d399; font-size: 0.78rem; font-weight: 600; }
 .compare-worse  { color: #f87171; font-size: 0.78rem; font-weight: 600; }
@@ -1027,8 +975,6 @@ body::after {
 
     .period-select { padding: 8px 10px; font-size: 0.82rem; }
     .refresh-btn { padding: 8px 12px; font-size: 0.82rem; }
-    .threshold-wrapper { padding: 0 7px; }
-    .threshold-input { width: 48px; font-size: 0.82rem; }
 
     .tab-btn { padding: 8px 14px; font-size: 0.85rem; }
 

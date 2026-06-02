@@ -28,7 +28,6 @@ const SENSORS = {
 let energyChart, powerChart, waterChart, mixChart;
 let prevData = { hp: 0, hc: 0, production: 0, surplus: 0 };
 let sunTimes = { sunrise: 7, sunset: 20 }; // mis à jour depuis sun.sun via /api/weather
-let powerThreshold = parseInt(localStorage.getItem('powerThreshold') || '3000', 10);
 let currentData = {
     currentPower: 0,
     currentSolarPower: 0,
@@ -74,7 +73,6 @@ const elements = {
     autorefreshBtn: document.getElementById('autorefresh-btn'),
     refreshIntervalSelect: document.getElementById('refresh-interval-select'),
     loadingOverlay: document.getElementById('loading-overlay'),
-    powerThresholdInput: document.getElementById('power-threshold'),
     compareConsumption: document.getElementById('compare-consumption'),
     compareProduction: document.getElementById('compare-production'),
     bilanNetValue: document.getElementById('bilan-net-value'),
@@ -796,16 +794,6 @@ const updateUI = () => {
         elements.compareProduction.innerHTML = compareBadge(showProduction, prevData.production, true);
     }
 
-    // Seuil d'alerte puissance
-    const featuredCard = document.querySelector('.stat-card.featured');
-    const absPower = Math.abs(currentData.currentPower);
-    if (!isExporting && featuredCard) {
-        featuredCard.classList.toggle('warning', absPower > powerThreshold && absPower <= powerThreshold * 1.6);
-        featuredCard.classList.toggle('danger', absPower > powerThreshold * 1.6);
-    } else if (featuredCard) {
-        featuredCard.classList.remove('warning', 'danger');
-    }
-
     // Mix chart
     updateMixChart();
 
@@ -875,14 +863,6 @@ const initEventListeners = () => {
         elements.autorefreshBtn.classList.toggle('autorefresh-off', !autoRefreshEnabled);
         applyAutoRefresh();
     });
-
-    if (elements.powerThresholdInput) {
-        elements.powerThresholdInput.value = powerThreshold;
-        elements.powerThresholdInput.addEventListener('change', (e) => {
-            powerThreshold = parseInt(e.target.value, 10) || 3000;
-            localStorage.setItem('powerThreshold', powerThreshold);
-        });
-    }
 
     if (elements.exportCsvBtn) {
         elements.exportCsvBtn.addEventListener('click', exportCSV);
