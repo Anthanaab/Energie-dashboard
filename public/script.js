@@ -12,7 +12,7 @@ const HA_CONFIG = {
 const SENSORS = {
     devices: [
         { name: 'Rack', icon: '🖥️' },
-        { name: 'TV', icon: '📺' },
+        { name: 'TV Salon', icon: '📺' },
         { name: 'Bambu (Imprimante 3D)', icon: '🖨️' },
         { name: 'Grenier', icon: '🏠' },
         { name: 'PC Secondaire', icon: '🖥️' },
@@ -29,7 +29,8 @@ const SENSORS = {
         { name: 'Tablette', icon: '📱' },
         { name: 'Thermomix', icon: '🍲' },
         { name: 'Café', icon: '☕' },
-        { name: 'Pharma (SdB)', icon: '💊' }
+        { name: 'Pharma (SdB)', icon: '💊' },
+        { name: 'TV Chambre', icon: '📺' }
     ]
 };
 

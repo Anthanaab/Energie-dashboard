@@ -18,7 +18,7 @@ const WATER = 'sensor.consommation_eau_totale';
 // Prises connectées : [entité_energy, entité_power, nom, icône]
 const DEVICES = [
   ['sensor.prise_rack_energy',                 'sensor.prise_rack_power',                 'Rack',                '🖥️'],
-  ['sensor.prise_tv_energy',                   'sensor.prise_tv_power',                   'TV',                  '📺'],
+  ['sensor.prise_tv_energy',                   'sensor.prise_tv_power',                   'TV Salon',            '📺'],
   ['sensor.prise_bambu_energy',                'sensor.prise_bambu_power',                'Bambu (Imprimante 3D)', '🖨️'],
   ['sensor.prise_grenier_energy',              'sensor.prise_grenier_power',              'Grenier',             '🏠'],
   ['sensor.prise_pc_ss_energy',                'sensor.prise_pc_ss_power',                'PC Secondaire',       '🖥️'],
@@ -36,6 +36,7 @@ const DEVICES = [
   ['sensor.cuisine_prise_thermomix_electric_consumption_kwh',    'sensor.cuisine_prise_thermomix_power',    'Thermomix',     '🍲'],
   ['sensor.cuisine_prise_cafe_electric_consumption_kwh',         'sensor.cuisine_prise_cafe_electric_consumption_w', 'Café',  '☕'],
   ['sensor.sdb_prise_pharma_electric_consumption_kwh',           'sensor.sdb_prise_pharma_power',           'Pharma (SdB)',  '💊'],
+  ['sensor.chambre_prise_tv_electric_consumption_kwh',           'sensor.chambre_prise_tv_power',           'TV Chambre',    '📺'],
 ];
 
 // Liste plate de toutes les entités à interroger/stocker
