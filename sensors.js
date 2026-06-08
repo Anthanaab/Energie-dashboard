@@ -27,6 +27,15 @@ const DEVICES = [
   ['sensor.prise_buffet_energy',               'sensor.prise_buffet_power',               'Buffet (Salon)',      '🪑'],
   ['sensor.garage_prise_porte_garage_electric_consumption_kwh', 'sensor.garage_prise_porte_garage_power', 'Porte Garage', '🚪'],
   ['sensor.garage_prise_garage_electric_consumption_kwh',       'sensor.garage_prise_garage_power',       'Garage',        '🚗'],
+  ['sensor.bureau_prise_bureau_jeremy_electric_consumption_kwh', 'sensor.bureau_prise_bureau_jeremy_power', 'Bureau Jérémy', '🖥️'],
+  ['sensor.bureau_prise_bureau_marine_electric_consumption_kwh', 'sensor.bureau_prise_bureau_marine_power', 'Bureau Marine', '🖥️'],
+  ['sensor.chambre_prise_chevet_jeremy_electric_consumption_kwh', 'sensor.chambre_prise_chevet_jeremy_power', 'Chevet Jérémy', '🛏️'],
+  ['sensor.chambre_prise_chevet_marine_electric_consumption_kwh', 'sensor.chambre_prise_chevet_marine_power', 'Chevet Marine', '🛏️'],
+  ['sensor.mezzanine_prise_atelier_electric_consumption_kwh',    'sensor.mezzanine_prise_atelier_power',    'Atelier',       '🔧'],
+  ['sensor.entree_prise_tablette_electric_consumption_kwh',      'sensor.entree_prise_tablette_power',      'Tablette',      '📱'],
+  ['sensor.cuisine_prise_thermomix_electric_consumption_kwh',    'sensor.cuisine_prise_thermomix_power',    'Thermomix',     '🍲'],
+  ['sensor.cuisine_prise_cafe_electric_consumption_kwh',         'sensor.cuisine_prise_cafe_electric_consumption_w', 'Café',  '☕'],
+  ['sensor.sdb_prise_pharma_electric_consumption_kwh',           'sensor.sdb_prise_pharma_power',           'Pharma (SdB)',  '💊'],
 ];
 
 // Liste plate de toutes les entités à interroger/stocker

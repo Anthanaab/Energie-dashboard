@@ -20,7 +20,16 @@ const SENSORS = {
         { name: 'Pompe', icon: '💦' },
         { name: 'Buffet (Salon)', icon: '🪑' },
         { name: 'Porte Garage', icon: '🚪' },
-        { name: 'Garage', icon: '🚗' }
+        { name: 'Garage', icon: '🚗' },
+        { name: 'Bureau Jérémy', icon: '🖥️' },
+        { name: 'Bureau Marine', icon: '🖥️' },
+        { name: 'Chevet Jérémy', icon: '🛏️' },
+        { name: 'Chevet Marine', icon: '🛏️' },
+        { name: 'Atelier', icon: '🔧' },
+        { name: 'Tablette', icon: '📱' },
+        { name: 'Thermomix', icon: '🍲' },
+        { name: 'Café', icon: '☕' },
+        { name: 'Pharma (SdB)', icon: '💊' }
     ]
 };
 
