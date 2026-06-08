@@ -18,7 +18,7 @@ const SENSORS = {
         { name: 'PC Secondaire', icon: '🖥️' },
         { name: 'Salle de Bain', icon: '🚿' },
         { name: 'Pompe', icon: '💦' },
-        { name: 'Buffet (Salon)', icon: '🪑' },
+        { name: 'Buffet 1 (Salon)', icon: '🪑' },
         { name: 'Porte Garage', icon: '🚪' },
         { name: 'Garage', icon: '🚗' },
         { name: 'Bureau Jérémy', icon: '🖥️' },
@@ -30,7 +30,8 @@ const SENSORS = {
         { name: 'Thermomix', icon: '🍲' },
         { name: 'Café', icon: '☕' },
         { name: 'Pharma (SdB)', icon: '💊' },
-        { name: 'TV Chambre', icon: '📺' }
+        { name: 'TV Chambre', icon: '📺' },
+        { name: 'Buffet 2 (Salon)', icon: '🪑' }
     ]
 };
 
