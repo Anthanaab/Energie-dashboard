@@ -19,14 +19,14 @@ const WATER = 'sensor.consommation_eau_totale';
 const DEVICES = [
   ['sensor.prise_rack_energy',                 'sensor.prise_rack_power',                 'Rack',                '🖥️'],
   ['sensor.prise_tv_energy',                   'sensor.prise_tv_power',                   'TV',                  '📺'],
-  ['sensor.prise_proxmox_energy',              'sensor.prise_proxmox_power',              'Proxmox (PC Gaming)', '💻'],
+  ['sensor.prise_bambu_energy',                'sensor.prise_bambu_power',                'Bambu (Imprimante 3D)', '🖨️'],
   ['sensor.prise_grenier_energy',              'sensor.prise_grenier_power',              'Grenier',             '🏠'],
   ['sensor.prise_pc_ss_energy',                'sensor.prise_pc_ss_power',                'PC Secondaire',       '🖥️'],
   ['sensor.prise_sdb_energy',                  'sensor.prise_sdb_power',                  'Salle de Bain',       '🚿'],
   ['sensor.prise_pompe_energy',                'sensor.prise_pompe_power',                'Pompe',               '💦'],
   ['sensor.prise_buffet_energy',               'sensor.prise_buffet_power',               'Buffet (Salon)',      '🪑'],
-  ['sensor.garage_prise_porte_garage_192_energy', 'sensor.garage_prise_porte_garage_192_power', 'Porte Garage',  '🚪'],
-  ['sensor.garage_prise_garage_194_energy',    'sensor.garage_prise_garage_194_power',    'Garage',              '🚗'],
+  ['sensor.garage_prise_porte_garage_electric_consumption_kwh', 'sensor.garage_prise_porte_garage_power', 'Porte Garage', '🚪'],
+  ['sensor.garage_prise_garage_electric_consumption_kwh',       'sensor.garage_prise_garage_power',       'Garage',        '🚗'],
 ];
 
 // Liste plate de toutes les entités à interroger/stocker

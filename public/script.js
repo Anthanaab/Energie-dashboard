@@ -13,7 +13,7 @@ const SENSORS = {
     devices: [
         { name: 'Rack', icon: '🖥️' },
         { name: 'TV', icon: '📺' },
-        { name: 'Proxmox (PC Gaming)', icon: '💻' },
+        { name: 'Bambu (Imprimante 3D)', icon: '🖨️' },
         { name: 'Grenier', icon: '🏠' },
         { name: 'PC Secondaire', icon: '🖥️' },
         { name: 'Salle de Bain', icon: '🚿' },
