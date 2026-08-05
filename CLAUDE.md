@@ -171,7 +171,7 @@ Lu depuis `sensor.surplus_de_production_positif` (déjà positif, reset minuit) 
 ## Deployment (Production)
 
 ### Infrastructure
-- **Git:** Gitea local → `http://192.168.50.15:3000/antha/energie-dashboard.git` (branch: `master`)
+- **Git:** GitHub → `https://github.com/Anthanaab/Energie-dashboard.git` (branch: `master`)
 - **Docker host:** `192.168.50.69` managed via Portainer → `https://192.168.50.69:9443`
 - **Stack name:** `energie-dashboard` — deployed via Portainer Repository mode
 - **URL prod:** `http://192.168.50.69:3000`
