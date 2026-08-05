@@ -78,7 +78,6 @@ const elements = {
     surplusKwh: document.getElementById('surplus-kwh'),
     lastUpdate: document.getElementById('last-update'),
     footerTime: document.getElementById('footer-time'),
-    consumersGrid: document.getElementById('consumers-grid'),
     periodSelect: document.getElementById('period-select'),
     refreshBtn: document.getElementById('refresh-btn'),
     autorefreshBtn: document.getElementById('autorefresh-btn'),
@@ -527,34 +526,6 @@ const updateCharts = () => {
     powerChart.update('smooth');
 };
 
-// ===== Update Top Consumers =====
-const updateTopConsumers = () => {
-    elements.consumersGrid.innerHTML = '';
-    
-    currentData.devices
-        .sort((a, b) => b.energy - a.energy)
-        .slice(0, 10)
-        .forEach((device, index) => {
-            const maxEnergy = Math.max(...currentData.devices.map(d => d.energy));
-            const percentage = maxEnergy > 0 ? (device.energy / maxEnergy) * 100 : 0;
-            
-            const item = document.createElement('div');
-            item.className = 'consumer-item';
-            item.innerHTML = `
-                <div class="consumer-rank">${index + 1}</div>
-                <div class="consumer-info">
-                    <div class="consumer-name">${device.icon} ${device.name}</div>
-                </div>
-                <div class="consumer-value">
-                    <div class="consumer-energy">${formatNumber(device.energy, 1)} kWh</div>
-                    <div class="consumer-power">${formatNumber(device.power, 1)} W</div>
-                </div>
-                <div class="consumer-bar" style="width: ${percentage}%"></div>
-            `;
-            elements.consumersGrid.appendChild(item);
-        });
-};
-
 // ===== Fetch All Data =====
 const fetchAllData = async () => {
     try {
@@ -603,7 +574,6 @@ const fetchAllData = async () => {
         // Update UI
         updateUI();
         updateCharts();
-        updateTopConsumers();
 
     } catch (error) {
         console.error('Error fetching data:', error);

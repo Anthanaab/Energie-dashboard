@@ -37,6 +37,7 @@
                     <button id="refresh-btn" class="refresh-btn">
                         <span class="btn-icon">🔄</span> Rafraîchir
                     </button>
+                    <button id="export-csv-btn" class="export-btn" title="Exporter les données en CSV">⬇ CSV</button>
                 </div>
             </div>
         </header>
@@ -355,17 +356,6 @@
                 </div>
             </section>
 
-            <!-- Top Consumers -->
-            <section class="top-consumers">
-                <div class="section-header">
-                    <h2>🔥 Top Consommateurs</h2>
-                    <div class="section-header-right">
-                        <span class="update-time">Mis à jour: <span id="last-update">--</span></span>
-                        <button id="export-csv-btn" class="export-btn" title="Exporter les données en CSV">⬇ CSV</button>
-                    </div>
-                </div>
-                <div class="consumers-grid" id="consumers-grid"></div>
-            </section>
 
             <!-- Detailed Stats -->
             <section class="detailed-stats">
@@ -463,7 +453,7 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p>❤️ Données depuis <strong>Home Assistant</strong> | <span id="footer-time">--</span></p>
+            <p>❤️ Données depuis <strong>Home Assistant</strong> | <span id="footer-time">--</span> | Mis à jour: <span id="last-update">--</span></p>
         </footer>
     </div>
 
