@@ -154,15 +154,22 @@ app.get('/api/water-data', (req, res) => {
         const period = req.query.period || 'day';
         const until = nowSec();
         const since = until - periodSeconds(period);
-
-        const rows = db.sanitize(db.getReadings(WATER, since, until));
-        const liters = db.deltaWithResets(rows);
-
         const edges = db.makeEdges(since, until, CHART_POINTS);
-        const cumLiters = db.cumulativeAtEdges(rows, edges);
         const timestamps = edges.map(tsToISO);
 
-        res.json({ liters, history: { timestamps, liters: cumLiters } });
+        const readMeter = (entityId) => {
+            const rows = db.sanitize(db.getReadings(entityId, since, until));
+            return {
+                liters: db.deltaWithResets(rows),
+                history: { timestamps, liters: db.cumulativeAtEdges(rows, edges) },
+            };
+        };
+
+        const main = readMeter(WATER.main);
+        const ext = readMeter(WATER.ext);
+
+        // Champs legacy (liters/history) conservés à plat = compteur principal, pour compat rétro
+        res.json({ liters: main.liters, history: main.history, main, ext });
     } catch (error) {
         console.error('Error in water-data:', error.message);
         res.status(500).json({ error: 'Failed to compute water data' });

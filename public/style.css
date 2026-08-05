@@ -318,6 +318,27 @@ body::after {
     transition: var(--transition);
 }
 
+.stat-card.water-ext-featured {
+    background: rgba(217, 119, 6, 0.1);
+    border-color: rgba(217, 119, 6, 0.3);
+    box-shadow: var(--shadow), 0 0 30px rgba(217, 119, 6, 0.08);
+}
+
+.stat-card.water-ext-featured:hover .water-ext-glow {
+    opacity: 1;
+}
+
+.water-ext-glow {
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(217, 119, 6, 0.25) 0%, transparent 70%);
+    opacity: 0;
+    transition: var(--transition);
+}
+
 .stat-icon {
     font-size: 2.2rem;
     margin-bottom: 14px;

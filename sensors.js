@@ -12,8 +12,11 @@ const MAIN = {
   solarPower:   'sensor.envoy_122303081421_current_power_production', // W production solaire instantanée (flux solaire)
 };
 
-// Capteur eau (litres, reset minuit)
-const WATER = 'sensor.consommation_eau_totale';
+// Capteurs eau (litres, reset minuit)
+const WATER = {
+  main: 'sensor.consommation_eau_totale',                       // compteur principal
+  ext:  'sensor.sous_sol_conso_eau_ext_eau_ext_journalier',      // compteur extérieur
+};
 
 // Prises connectées : [entité_energy, entité_power, nom, icône]
 const DEVICES = [
@@ -43,7 +46,7 @@ const DEVICES = [
 // Liste plate de toutes les entités à interroger/stocker
 const ALL_ENTITIES = [
   ...Object.values(MAIN),
-  WATER,
+  ...Object.values(WATER),
   ...DEVICES.flatMap(([e, p]) => [e, p]),
 ];
 

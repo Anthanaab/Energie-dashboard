@@ -66,9 +66,13 @@ const elements = {
     labelTotal: document.getElementById('label-total'),
     labelWater: document.getElementById('label-water'),
     labelWaterCost: document.getElementById('label-water-cost'),
+    labelWaterExt: document.getElementById('label-water-ext'),
+    labelWaterExtCost: document.getElementById('label-water-ext-cost'),
 
     waterToday: document.getElementById('water-today'),
     waterCostToday: document.getElementById('water-cost-today'),
+    waterExtToday: document.getElementById('water-ext-today'),
+    waterExtCostToday: document.getElementById('water-ext-cost-today'),
     hpValue: document.getElementById('hp-value'),
     hcValue: document.getElementById('hc-value'),
     peakPower: document.getElementById('peak-power'),
@@ -376,7 +380,7 @@ const initWaterChart = () => {
         data: {
             labels: [],
             datasets: [{
-                label: 'Consommation eau (m³)',
+                label: 'Eau (m³)',
                 data: [],
                 borderColor: '#0891b2',
                 backgroundColor: 'rgba(8, 145, 178, 0.1)',
@@ -385,13 +389,23 @@ const initWaterChart = () => {
                 pointBackgroundColor: '#0891b2',
                 tension: 0.4,
                 fill: true
+            }, {
+                label: 'Eau Extérieur (m³)',
+                data: [],
+                borderColor: '#d97706',
+                backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: '#d97706',
+                tension: 0.4,
+                fill: true
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
+                legend: { display: true, labels: { color: '#94a3b8', font: { size: 11 } } },
                 tooltip: {
                     backgroundColor: '#1e293b',
                     titleColor: '#f8fafc',
@@ -488,23 +502,33 @@ const fetchWaterData = async (period) => {
         if (!data) return;
 
         const toM3 = (liters) => liters / 1000;
-        const waterPeriodL = data.liters || 0;
-
         const lbl = PERIOD_LABELS[period];
-        elements.labelWater.textContent = `Conso Eau ${lbl}`;
-        elements.labelWaterCost.textContent = `Coût Eau ${lbl}`;
-
         // Heure/24h → L, 7j/30j → m³
         const useLiters = period === 'hour' || period === 'day';
-        const waterCost = toM3(waterPeriodL) * HA_CONFIG.priceWater;
 
-        elements.waterToday.textContent = useLiters ? formatNumber(waterPeriodL, 0) : formatNumber(toM3(waterPeriodL), 3);
+        const main = data.main || { liters: data.liters || 0, history: data.history || {} };
+        const ext = data.ext || { liters: 0, history: {} };
+
+        elements.labelWater.textContent = `Conso Eau ${lbl}`;
+        elements.labelWaterCost.textContent = `Coût Eau ${lbl}`;
+        elements.labelWaterExt.textContent = `Conso Eau Extérieur ${lbl}`;
+        elements.labelWaterExtCost.textContent = `Coût Eau Extérieur ${lbl}`;
+
+        const mainCost = toM3(main.liters) * HA_CONFIG.priceWater;
+        const extCost = toM3(ext.liters) * HA_CONFIG.priceWater;
+
+        elements.waterToday.textContent = useLiters ? formatNumber(main.liters, 0) : formatNumber(toM3(main.liters), 3);
         document.getElementById('water-unit').textContent = useLiters ? 'L' : 'm³';
-        elements.waterCostToday.textContent = formatNumber(waterCost, 2);
+        elements.waterCostToday.textContent = formatNumber(mainCost, 2);
+
+        elements.waterExtToday.textContent = useLiters ? formatNumber(ext.liters, 0) : formatNumber(toM3(ext.liters), 3);
+        document.getElementById('water-ext-unit').textContent = useLiters ? 'L' : 'm³';
+        elements.waterExtCostToday.textContent = formatNumber(extCost, 2);
 
         if (waterChart) {
-            waterChart.data.labels = (data.history.timestamps || []).map(formatDate);
-            waterChart.data.datasets[0].data = (data.history.liters || []).map(toM3);
+            waterChart.data.labels = (main.history.timestamps || []).map(formatDate);
+            waterChart.data.datasets[0].data = (main.history.liters || []).map(toM3);
+            waterChart.data.datasets[1].data = (ext.history.liters || []).map(toM3);
             waterChart.update('smooth');
         }
     } catch (error) {
