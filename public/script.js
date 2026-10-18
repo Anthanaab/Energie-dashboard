@@ -878,28 +878,35 @@ const initEventListeners = () => {
     if (elements.updateBtn) {
         elements.updateBtn.addEventListener('click', async () => {
             elements.updateBtn.disabled = true;
-            const status = elements.updateStatus;
-            status.textContent = '⇅ Mise à jour en cours...';
+            const say = (msg) => {
+                console.log('[MAJ]', msg);
+                if (elements.updateStatus) elements.updateStatus.textContent = msg;
+                return msg;
+            };
+            say('⇅ Mise à jour en cours...');
             try {
                 const resp = await fetch('/api/update', { method: 'POST' });
                 const data = await resp.json().catch(() => ({}));
                 if (resp.ok && data.ok) {
                     if (data.upToDate) {
-                        status.textContent = '✓ Déjà à jour';
-                        setTimeout(() => {
-                            status.textContent = '';
-                            elements.updateBtn.disabled = false;
-                        }, 4000);
+                        say('✓ Déjà à jour');
+                        alert('✔ Déjà à jour — aucune mise à jour disponible.');
+                        setTimeout(() => { say(''); elements.updateBtn.disabled = false; }, 4000);
                     } else {
-                        status.textContent = '✔ MAJ OK — redémarrage...';
-                        setTimeout(() => location.reload(), 2500);
+                        say('✔ MAJ OK — redémarrage...');
+                        alert('✔ Mise à jour appliquée. Le dashboard redémarre et sera rechargé...');
+                        setTimeout(() => location.reload(), 2000);
                     }
                 } else {
-                    status.textContent = '✗ Échec : ' + (data.error || ('HTTP ' + resp.status));
+                    const err = data.error || ('HTTP ' + resp.status);
+                    say('✗ Échec : ' + err);
+                    alert('✗ Échec de la mise à jour :\n' + err);
                     elements.updateBtn.disabled = false;
                 }
             } catch (e) {
-                status.textContent = '✗ Erreur réseau';
+                console.error('[MAJ] erreur', e);
+                say('✗ Erreur réseau');
+                alert('✗ Erreur réseau : ' + (e && e.message));
                 elements.updateBtn.disabled = false;
             }
         });
