@@ -24,7 +24,7 @@ msg_error() { echo -e "${RD}[ERREUR]${CL} $1"; }
 #  0. Paramètres (surchargés par variables d'env, style helper-script)
 # ───────────────────────────────────────────────────────────────────
 
-CT_ID="${CT_ID:-290}"                    # ID du conteneur
+CT_ID="${CT_ID:-auto}"                   # ID du conteneur ('auto' = prochain libre, ou forcer avec "CT_ID=2xx")
 CT_NAME="${CT_NAME:-conso-maison}"       # Nom
 CT_PW="${CT_PW:-}"                       # Mot de passe root (auto-généré si vide)
 # Réseau en DHCP (adresse attribuée par le routeur/le serveur DHCP du bridge)
@@ -62,8 +62,25 @@ DOCKER_VOL="${DOCKER_VOL:-/var/lib/docker/volumes/energie-data/_data}"
 # ───────────────────────────────────────────────────────────────────
 if [[ "$(id -u)" -ne 0 ]]; then msg_error "Lancer en root sur l'hôte Proxmox."; exit 1; fi
 if ! command -v pct >/dev/null 2>&1; then msg_error "'pct' introuvable — pas un hôte Proxmox."; exit 1; fi
-if pct config "$CT_ID" >/dev/null 2>&1; then msg_error "Conteneur $CT_ID existe déjà."; exit 1; fi
 if ! command -v pveam >/dev/null 2>&1; then msg_error "'pveam' absent."; exit 1; fi
+
+# ───────────────────────────────────────────────────────────────────
+#  1b. Attribution automatique de l'ID du conteneur
+# ───────────────────────────────────────────────────────────────────
+if [[ -z "$CT_ID" || "$CT_ID" == "auto" ]]; then
+  msg_info "Aucun CT_ID fourni — recherche du prochain identifiant libre..."
+  if command -v pvesh >/dev/null 2>&1; then
+    CT_ID="$(pvesh get /cluster/nextid 2>/dev/null || true)"
+  fi
+  if [[ -z "$CT_ID" || ! "$CT_ID" =~ ^[0-9]+$ ]]; then
+    # Repli : max des IDs LXC+VM existants + 1 (minimum 100)
+    CT_MAX="$({ pct list; qm list; } 2>/dev/null | awk '$1 ~ /^[0-9]+$/ {if ($1+0 > m) m=$1+0} END {print m+1}')"
+    CT_ID="$(( ${CT_MAX:-1} ))"
+    [[ "$CT_ID" -lt 100 ]] && CT_ID=100
+  fi
+  msg_ok "ID automatique sélectionné : $CT_ID"
+fi
+if pct config "$CT_ID" >/dev/null 2>&1; then msg_error "Conteneur $CT_ID existe déjà."; exit 1; fi
 
 # Mot de passe root du conteneur
 if [[ -z "$CT_PW" ]]; then
