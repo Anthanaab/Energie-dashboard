@@ -48,6 +48,9 @@ PORT=3000
 # Home Assistant (⚠️ à renseigner — ou copié depuis Docker, voir plus bas)
 HA_URL="${HA_URL:-http://192.168.40.214:8123}"
 HA_TOKEN="${HA_TOKEN:-}"
+# 🔒 Sécurité : le token HA n'est JAMAIS écrit dans un fichier committé. Il est
+# stocké uniquement dans /etc/energie-dashboard.env (root, chmod 600), lu par le
+# service systemd. Ne jamais l'exporter dans le repo, un commit, ou le terminal.
 
 DB_PATH="/data/energie.db"
 POLL_INTERVAL_MS="${POLL_INTERVAL_MS:-30000}"
@@ -301,5 +304,10 @@ if [[ -z "$HA_TOKEN" ]]; then
   echo "  ⚠️  HA_TOKEN vide. Renseigne-le dans /etc/energie-dashboard.env :"
   echo "    pct exec $CT_ID -- sed -i \"s|^HA_TOKEN=.*|HA_TOKEN=<TON_TOKEN>|\" /etc/energie-dashboard.env"
   echo "    pct exec $CT_ID -- systemctl restart $SERVICE_NAME"
+fi
+if [[ -n "$HA_TOKEN" ]]; then
+  echo ""
+  echo "  🔒 Home Assistant configuré (token stocké en root, chmod 600)."
+  echo "     Ne le commit jamais ; il ne vit que dans /etc/energie-dashboard.env."
 fi
 echo "══════════════════════════════════════════════════════════════"
