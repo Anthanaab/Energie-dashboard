@@ -4,13 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`energie-dashboard` — a Node.js/Express server + vanilla JS frontend that displays energy data from a local Home Assistant instance (Enphase Envoy solar + Ecojoko smart meter + smart plugs). Includes an Eau (water) tab, weather widget, animated solar flow, mix chart, CO₂/net-balance stats, period comparison and CSV export. **A background poller collects HA data into a local SQLite DB; the frontend reads computed values from the DB, not HA directly** (live weather/sun are the only direct HA reads).
+`energie-dashboard` — a Node.js/Express server + vanilla JS frontend that displays energy data from a local Home Assistant instance (Enphase Envoy solar + Ecojoko smart meter + smart plugs). Includes an Eau (water) tab (2 compteurs), a ⚙️ Réglages tab (gestion des capteurs), weather widget, animated solar flow, mix chart, CO₂/net-balance stats, period comparison, CSV export and a 🔄 MAJ button (self-update from GitHub). **A background poller collects HA data into a local SQLite DB; the frontend reads computed values from the DB, not HA directly** (live weather/sun are the only direct HA reads).
 
 ## Commands
 
 ```bash
-cd energie-dashboard
-
 # Install dependencies (better-sqlite3 is a native module — see dev note)
 npm install
 
@@ -33,7 +31,9 @@ energie-dashboard/
   poller.js     # Background loop: polls HA every 30s → SQLite ; backfills HA history on boot
   db.js         # SQLite access (better-sqlite3): schema, read/write, retention
   compute.js    # Pure calc helpers (deltas, cumulative, downsampling) — no native dep, testable
-  sensors.js    # Single source of truth for all HA entity IDs (used by poller + server)
+  sensors.js    # Default HA entity IDs (MAIN, WATER, DEVICES)
+  sensorConfig.js # Merges sensors.js defaults with the runtime override /data/sensors-config.json (used by poller + server)
+  install_lxc.sh  # Proxmox helper script: creates + provisions the LXC (Node 20, systemd service)
   public/
     index.html  # Single-page dashboard (French UI) — Énergie + Eau tabs
     script.js   # Display layer: fetches computed values + live weather, renders Chart.js + DOM
@@ -46,7 +46,10 @@ energie-dashboard/
 
 **Endpoints:**
 - `GET /api/all-energy-data?period=X` (reads DB) → `{ main:{currentPower,currentSolarPower}, period:{hp,hc,surplus,production,peakPower}, prev:{hp,hc,production,surplus}, devices:[{name,energy,power}], history:{timestamps,consumption,production,power} }`. `period.*` are accurate scalars; `history.*` are downsampled (150 pts) for charts; `prev` is the previous same-length period for comparison badges.
-- `GET /api/water-data?period=X` (reads DB) → `{ liters, history:{timestamps,liters} }`
+- `GET /api/water-data?period=X` (reads DB) → `{ main:{liters,history:{timestamps,liters}}, ext:{liters,history:{timestamps,liters}}, liters, history }` — `main` = compteur principal, `ext` = compteur extérieur ; `liters`/`history` à plat = copie de `main` (compat rétro).
+- `GET /api/sensors` / `POST /api/sensors` / `POST /api/sensors/reset` → lecture / écriture / reset de la config capteurs (menu ⚙️ Réglages)
+- `GET /api/version` → `{ commit, ok }` (hash git court affiché par le bouton MAJ)
+- `POST /api/update` → `git pull --ff-only` + `npm install --omit=dev` puis redémarrage du service (`sudo -n systemctl restart energie-dashboard`) ; 409 si une MAJ est déjà en cours. Aucune authentification : à ne laisser accessible que sur le LAN.
 - `GET /api/weather` (live HA passthrough) → Pirate Weather state + sun.sun rise/set hours
 - `GET /api/status` → `{ ok, readings, db }` (debug)
 - `period` ∈ `hour|day|week|month`.
@@ -65,7 +68,7 @@ const HA_CONFIG = {
 
 - Home Assistant at `http://<HA_HOST>:8123` (adresse LAN à remplacer) ; server listens on `0.0.0.0` (port 80 dans le LXC, 3000 en dev via `PORT`)
 - Charts use Chart.js 4.4 + luxon adapter (loaded from CDN)
-- Auto-refresh: configurable interval (10s/30s/1min/5min) with enable/disable toggle. **Note:** display refresh ≠ data freshness — data is only as fresh as the last poll (≤30s).
+- Auto-refresh: configurable interval (10s/30s/1min/5min) with enable/disable toggle, **désactivé par défaut** (bouton `⏸ Pause` ↔ `⏱ Auto`). **Note:** display refresh ≠ data freshness — data is only as fresh as the last poll (≤30s).
 - Numbers formatted with French locale (comma as decimal separator)
 - `window.HADashboard` is exposed on the global for browser-console debugging
 
@@ -80,11 +83,12 @@ MAIN.surplus      = sensor.surplus_de_production_positif           (kWh injecté
 MAIN.production   = sensor.envoy_122303081421_production_d_energie_du_jour  (kWh prod solaire, reset minuit)
 MAIN.currentPower = sensor.ecojoko_consommation_temps_reel         (W instantané, PAS de reset, négatif = export)
 MAIN.solarPower   = sensor.envoy_122303081421_current_power_production  (W prod solaire instantanée, flux solaire)
-WATER             = sensor.consommation_eau_totale                 (litres, reset minuit)
-DEVICES           = 10 prises (sensor.prise_* / garage_prise_*), chacune _energy + _power
+WATER.main        = sensor.consommation_eau_totale                 (litres, reset minuit — compteur principal)
+WATER.ext         = sensor.sous_sol_conso_eau_ext_eau_ext_journalier  (litres, reset minuit — compteur extérieur)
+DEVICES           = 21 prises (sensor.prise_* / *_prise_*), chacune _energy + _power + nom + icône
 ```
 
-Ajouter/retirer un capteur = éditer `sensors.js` uniquement (poller + serveur le partagent). L'ordre de `DEVICES` doit correspondre à l'ordre des icônes dans `SENSORS.devices` (script.js).
+Ajouter/retirer un capteur = soit via l'onglet ⚙️ Réglages (surcharge runtime, sans redéploiement), soit en éditant les défauts de `sensors.js` (poller + serveur passent par `sensorConfig.js`). Les prises (`DEVICES`) portent leur propre nom/icône (`{energy, power, name, icon}`), plus de liste d'icônes à garder synchronisée dans `script.js`.
 
 ### Sensor gotchas
 
@@ -132,9 +136,19 @@ Lu depuis `sensor.surplus_de_production_positif` (déjà positif, reset minuit) 
 
 **Charts:** Consommation & Production (line) | Puissance Instantanée (line) | Mix Énergétique (donut HP/HC/Solaire)
 
-**Top Consommateurs:** énergie kWh + puissance W live par appareil — bouton export CSV
-
 **Detail cards (bottom):** Heures Pleines | Heures Creuses | Pic de Puissance | Auto-consommation | Autosuffisance | Bilan Net € | CO₂ Évité
+
+**Header:** période, intervalle d'auto-refresh, `⏱ Auto`/`⏸ Pause`, `🔄 Rafraîchir`, `⬇ CSV`, `🔄 MAJ`. **Footer:** date + heure de dernière mise à jour.
+
+> Le classement « Top Consommateurs » a été retiré du dashboard ; les données par appareil (`devices` dans `/api/all-energy-data`) ne servent plus qu'à l'export CSV.
+
+## UI layout (Eau tab)
+
+4 stat cards : Conso Eau (bleu) | Coût Eau | Conso Eau Extérieur (ambre) | Coût Eau Extérieur — un seul graphique « Consommation d'Eau » à 2 courbes (m³, légende). Unité des cartes : litres pour 1h/24h, m³ pour 7j/30j. Le coût utilise `HA_CONFIG.priceWater` pour les deux compteurs.
+
+## UI layout (Réglages tab)
+
+Formulaire d'édition des entités : capteurs élec principaux, capteurs eau, liste des prises (ajout/suppression), boutons `💾 Enregistrer` et `↩ Réinitialiser (défauts)`. Lit/écrit via `/api/sensors*` (voir Sensors).
 
 ### Puissance Actuelle card
 - Affiche la valeur absolue du capteur `ecojoko_consommation_temps_reel`
@@ -166,7 +180,7 @@ Lu depuis `sensor.surplus_de_production_positif` (déjà positif, reset minuit) 
 - Mapping conditions HA → emoji dans `haConditionToInfo()` (script.js)
 
 ### Export CSV
-- Bouton `⬇ CSV` dans la section Top Consommateurs
+- Bouton `⬇ CSV` dans le header
 - Exporte : résumé période (HP, HC, production, surplus, conso maison, coût, revente, CO₂) + tableau appareils
 - Encodage UTF-8 avec BOM pour Excel
 
@@ -188,10 +202,16 @@ Le script : attribue un ID libre, détecte la dernière template Debian, demande
 ### Configuration
 Le service lit `/etc/energie-dashboard.env` (`EnvironmentFile`, root, `chmod 600`) : `PORT=80`, `HA_URL`, `HA_TOKEN`, `WEATHER_ENTITY`, `DB_PATH=/data/energie.db`, `POLL_INTERVAL_MS`, `RETENTION_DAYS`. **Le token HA ne doit jamais être committé** — il ne vit que dans ce fichier. Le service a la capacité `CAP_NET_BIND_SERVICE` pour lier le port 80 en non-root.
 
-### Mise à jour du LXC (code)
+### Workflow de mise à jour
+```bash
+# 1. Modifier le code puis pousser sur GitHub
+git add . && git commit -m "description du changement" && git push origin main:master
+```
+2. Appliquer sur le LXC : **bouton `🔄 MAJ` du dashboard** (git pull + npm install + redémarrage, via `POST /api/update`), ou en ligne de commande :
 ```bash
 pct exec <id> -- bash -c 'cd /opt/energie-dashboard && git pull && systemctl restart energie-dashboard'
 ```
+Si `git pull` échoue (fichier modifié localement dans le LXC), la MAJ est refusée.
 
 ### Développement local (sans LXC)
 Créer un fichier `.env` à la racine (déjà dans `.gitignore`), voir `.env.example` :
@@ -202,7 +222,6 @@ WEATHER_ENTITY=weather.pirateweather   # optionnel, c'est le défaut
 ```
 
 ```bash
-cd energie-dashboard
 npm install
-npm run dev   # nodemon, port 3000
+npm run dev   # nodemon, port 3000 par défaut (variable PORT)
 ```
