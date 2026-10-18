@@ -193,6 +193,10 @@ chown "$SERVICE_USER:$SERVICE_USER" "$REPO_DIR/.env"
 chmod 600 "$REPO_DIR/.env"
 printf 'DB_PATH=%s\nPOLL_INTERVAL_MS=%s\nRETENTION_DAYS=%s\n' \
   "$DB_PATH" "$POLL_INTERVAL_MS" "$RETENTION_DAYS" > /etc/energie-dashboard.env
+# ⚠️ Les identifiants HA DOIVENT être dans l'EnvironmentFile : le .env n'est
+# pas lu par Node (pas de dotenv) et le service lit process.env via systemd.
+printf 'HA_URL=%s\nHA_TOKEN=%s\nWEATHER_ENTITY=weather.pirateweather\n' \
+  "$HA_URL" "$HA_TOKEN" >> /etc/energie-dashboard.env
 chmod 600 /etc/energie-dashboard.env
 INNER
 msg_ok "Configuration écrite."
@@ -275,8 +279,8 @@ if [[ "${GEN_PW:-0}" == "1" ]]; then
 fi
 if [[ -z "$HA_TOKEN" ]]; then
   echo ""
-  echo "  ⚠️  HA_TOKEN vide. Renseigne-le :"
-  echo "    pct exec $CT_ID -- bash -c \"sed -i 's/^HA_TOKEN=.*/HA_TOKEN=<TON_TOKEN>/' $REPO_DIR/.env\""
+  echo "  ⚠️  HA_TOKEN vide. Renseigne-le dans /etc/energie-dashboard.env :"
+  echo "    pct exec $CT_ID -- sed -i \"s|^HA_TOKEN=.*|HA_TOKEN=<TON_TOKEN>|\" /etc/energie-dashboard.env"
   echo "    pct exec $CT_ID -- systemctl restart $SERVICE_NAME"
 fi
 echo "══════════════════════════════════════════════════════════════"
