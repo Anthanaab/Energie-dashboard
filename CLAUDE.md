@@ -23,7 +23,7 @@ npm run dev        # nodemon server.js
 
 No build step. Pure compute logic lives in `compute.js` and is unit-testable without the DB.
 
-⚠️ **Dev local & Node version:** `better-sqlite3` ships prebuilt binaries for Node LTS (18/20/22). On bleeding-edge Node (e.g. 25) there's no prebuild → `npm install` tries to compile (needs Visual Studio build tools on Windows). For local dev use **Node 20 LTS**, or rely on Docker (`node:20-slim`).
+⚠️ **Dev local & Node version:** `better-sqlite3` ships prebuilt binaries for Node LTS (18/20/22). On bleeding-edge Node (e.g. 25) there's no prebuild → `npm install` tries to compile (needs Visual Studio build tools on Windows). For local dev use **Node 20 LTS** (même version que celle installée par `install_lxc.sh` dans le LXC).
 
 ## Architecture
 
@@ -168,22 +168,37 @@ Lu depuis `sensor.surplus_de_production_positif` (déjà positif, reset minuit) 
 - Exporte : résumé période (HP, HC, production, surplus, conso maison, coût, revente, CO₂) + tableau appareils
 - Encodage UTF-8 avec BOM pour Excel
 
-## Deployment (Production)
+## Deployment (LXC — Proxmox VE)
 
 ### Infrastructure
 - **Git:** GitHub → `https://github.com/Anthanaab/Energie-dashboard.git` (branch: `master`)
-- **Docker host:** `<DOCKER_HOST_IP>` managed via Portainer → `https://<DOCKER_HOST_IP>:9443`
-- **Stack name:** `energie-dashboard` — deployed via Portainer Repository mode
-- **URL prod:** `http://<DOCKER_HOST_IP>:3000`
+- **Hôte :** LXC créé sur Proxmox VE via `install_lxc.sh`
+- **Dans le LXC :** code dans `/opt/energie-dashboard`, service systemd `energie-dashboard`, DB SQLite dans `/data/energie.db`
+- **URL :** `http://<IP_LXC>:3000`
 
-### Config Docker
-- Image `node:20-slim` (Debian/glibc) — requis pour `better-sqlite3` (module natif). Le Dockerfile installe `python3 make g++` au cas où aucun prebuild ne correspond.
-- `docker-compose.yml` utilise `${HA_URL}` et `${HA_TOKEN}` (sans fallback) → à saisir dans **Portainer → Stacks → energie-dashboard → Environment variables**
-- `server.js` plante au démarrage si l'une des deux variables est absente ; le token ne doit jamais être committé
-- **Volume nommé `energie-data` monté sur `/data`** → persiste la base SQLite entre les redeploys. ⚠️ Ne pas supprimer ce volume (perte de l'historique accumulé).
-- Autres env (défauts dans `docker-compose.yml`) : `DB_PATH=/data/energie.db`, `POLL_INTERVAL_MS=30000`, `RETENTION_DAYS=365`
+### Installation (nouveau LXC)
+En root sur l'hôte Proxmox :
+```bash
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/Anthanaab/Energie-dashboard/master/install_lxc.sh)"
+```
+Le script : attribue un ID libre, détecte la dernière template Debian, demande le token HA en interactif, installe Node 20 + le code, crée le service systemd et affiche l'IP + le lien du dashboard. Paramètres surchargeables en variable d'env : `CT_ID`, `CT_NAME`, `CT_RAM`, `CT_DISK`, `CT_STORAGE`, `HA_URL`, `HA_TOKEN`, `MIGRATE`, …
 
-### Développement local (sans Docker)
+### Configuration
+Le service lit `/etc/energie-dashboard.env` (`EnvironmentFile`, root, `chmod 600`) : `HA_URL`, `HA_TOKEN`, `WEATHER_ENTITY`, `DB_PATH=/data/energie.db`, `POLL_INTERVAL_MS`, `RETENTION_DAYS`. **Le token HA ne doit jamais être committé** — il ne vit que dans ce fichier.
+
+### Migration depuis Docker (optionnel)
+Pour conserver l'historique de l'ancien serveur Docker avant décommissionnement, recopier la base dans le LXC :
+```bash
+CT_ID=<id> MIGRATE=1 DOCKER_VOL=/var/lib/docker/volumes/energie-data/_data bash install_lxc.sh
+```
+(Utilise le step 8 du script ; sans Docker, ignorer `MIGRATE`.)
+
+### Mise à jour du LXC (code)
+```bash
+pct exec <id> -- bash -c 'cd /opt/energie-dashboard && git pull && systemctl restart energie-dashboard'
+```
+
+### Développement local (sans LXC)
 Créer un fichier `.env` à la racine (déjà dans `.gitignore`), voir `.env.example` :
 ```
 HA_URL=http://<HA_HOST>:8123
@@ -195,14 +210,4 @@ WEATHER_ENTITY=weather.pirateweather   # optionnel, c'est le défaut
 cd energie-dashboard
 npm install
 npm run dev   # nodemon, port 3000
-```
-
-### Workflow de mise à jour
-```powershell
-# 1. Modifier le code
-git add .
-git commit -m "description du changement"
-git push
-
-# 2. Dans Portainer → Stacks → energie-dashboard → Pull and redeploy
 ```
