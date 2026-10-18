@@ -865,9 +865,7 @@ const initEventListeners = () => {
 
     elements.autorefreshBtn.addEventListener('click', () => {
         autoRefreshEnabled = !autoRefreshEnabled;
-        elements.autorefreshBtn.textContent = autoRefreshEnabled ? '⏱ Auto' : '⏸ Pause';
-        elements.autorefreshBtn.classList.toggle('autorefresh-on', autoRefreshEnabled);
-        elements.autorefreshBtn.classList.toggle('autorefresh-off', !autoRefreshEnabled);
+        syncAutoRefreshUI();
         applyAutoRefresh();
     });
 
@@ -915,7 +913,14 @@ const initEventListeners = () => {
 
 // ===== Auto Refresh =====
 let autoRefreshTimer = null;
-let autoRefreshEnabled = true;
+let autoRefreshEnabled = false;   // désactivé par défaut — cliquer sur ⏸ Pause pour activer
+
+const syncAutoRefreshUI = () => {
+    if (!elements.autorefreshBtn) return;
+    elements.autorefreshBtn.textContent = autoRefreshEnabled ? '⏱ Auto' : '⏸ Pause';
+    elements.autorefreshBtn.classList.toggle('autorefresh-on', autoRefreshEnabled);
+    elements.autorefreshBtn.classList.toggle('autorefresh-off', !autoRefreshEnabled);
+};
 
 const applyAutoRefresh = () => {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
@@ -925,7 +930,8 @@ const applyAutoRefresh = () => {
 };
 
 const startAutoRefresh = () => {
-    fetchAllData();
+    syncAutoRefreshUI();   // reflète l'état par défaut (Pause) dès le chargement
+    fetchAllData();        // charge les données une fois au démarrage
     applyAutoRefresh();
 };
 
