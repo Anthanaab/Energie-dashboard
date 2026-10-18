@@ -882,3 +882,7 @@ body::after {
     .chart-card { padding: 18px 14px; }
     .chart-container { height: 200px; }
 }
+
+/* === Mise à jour === */
+.update-status { margin-left: 10px; opacity: 0.9; font-weight: 600; }
+.update-btn:disabled { opacity: 0.5; cursor: wait; }

@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
+const { execFile, spawn } = require('child_process');
 
 const db = require('./db');
 const poller = require('./poller');
@@ -178,7 +179,71 @@ app.get('/api/water-data', (req, res) => {
 
 // ===== Statut / debug =====
 app.get('/api/status', (req, res) => {
-    res.json({ ok: true, readings: db.count(), db: db.DB_PATH });
+    res.json({ ok: true, readings: db.count(), db: db.DB_PATH, updating });
+});
+
+// ===== Mise à jour de l'application (git pull + npm + restart) =====
+const REPO_DIR = __dirname;
+const SERVICE_NAME = 'energie-dashboard';
+let updating = false;
+
+const run = (cmd, args, opts = {}) => new Promise((resolve) => {
+    execFile(cmd, args, {
+        timeout: 180000,
+        env: {
+            ...process.env,
+            HOME: '/data',
+            npm_config_cache: '/data/.npm',
+            GIT_TERMINAL_PROMPT: '0',
+        },
+        ...opts,
+    }, (err, stdout, stderr) => {
+        resolve({
+            code: err ? (err.code !== undefined ? err.code : 1) : 0,
+            stdout: (stdout || '').toString(),
+            stderr: (stderr || '').toString(),
+        });
+    });
+});
+
+app.get('/api/version', async (req, res) => {
+    const r = await run('git', ['-C', REPO_DIR, 'rev-parse', '--short', 'HEAD']);
+    res.json({ commit: r.stdout.trim() || '?', ok: r.code === 0 });
+});
+
+app.post('/api/update', async (req, res) => {
+    if (updating) return res.status(409).json({ error: 'Une mise à jour est déjà en cours.' });
+    updating = true;
+    const log = [];
+    const record = (label, r) => {
+        const t = (r.stdout || r.stderr).trim();
+        log.push(`$ ${label}${t ? '\n' + t.split('\n').map(l => '   ' + l).join('\n') : ''}`);
+    };
+    try {
+        const pull = await run('git', ['-C', REPO_DIR, 'pull', '--ff-only'], { cwd: REPO_DIR });
+        record('git pull --ff-only', pull);
+        if (pull.code !== 0) {
+            return res.status(500).json({ ok: false, error: 'git pull a échoué (fichier modifié localement ?)', log });
+        }
+        if (/already up to date/i.test(pull.stdout)) {
+            return res.json({ ok: true, upToDate: true, log, message: 'Déjà à jour.' });
+        }
+        const npm = await run('npm', ['install', '--omit=dev'], { cwd: REPO_DIR });
+        record('npm install --omit=dev', npm);
+        if (npm.code !== 0) {
+            return res.status(500).json({ ok: false, error: "npm install a échoué (voir log), le service n'a pas été redémarré.", log });
+        }
+        res.json({ ok: true, upToDate: false, log });
+        // Redémarrage différé : le serveur s'arrête, on détache le process pour qu'il survive.
+        setTimeout(() => {
+            spawn('sh', ['-c', `sleep 1 && sudo -n systemctl restart ${SERVICE_NAME}`],
+                { detached: true, stdio: 'ignore' }).unref();
+        }, 300);
+    } catch (e) {
+        res.status(500).json({ error: 'Échec de la mise à jour.', log, detail: String((e && e.message) || e) });
+    } finally {
+        updating = false;
+    }
 });
 
 // ===== Debug : analyse d'une série (diagnostic over-count) =====

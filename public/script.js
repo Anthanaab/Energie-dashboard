@@ -92,7 +92,9 @@ const elements = {
     bilanNetValue: document.getElementById('bilan-net-value'),
     co2AvoidedValue: document.getElementById('co2-avoided-value'),
     weatherWidget: document.getElementById('weather-widget'),
-    exportCsvBtn: document.getElementById('export-csv-btn')
+    exportCsvBtn: document.getElementById('export-csv-btn'),
+    updateBtn: document.getElementById('update-btn'),
+    updateStatus: document.getElementById('update-status')
 };
 
 // ===== Utility Functions =====
@@ -871,6 +873,36 @@ const initEventListeners = () => {
 
     if (elements.exportCsvBtn) {
         elements.exportCsvBtn.addEventListener('click', exportCSV);
+    }
+
+    if (elements.updateBtn) {
+        elements.updateBtn.addEventListener('click', async () => {
+            elements.updateBtn.disabled = true;
+            const status = elements.updateStatus;
+            status.textContent = '⇅ Mise à jour en cours...';
+            try {
+                const resp = await fetch('/api/update', { method: 'POST' });
+                const data = await resp.json().catch(() => ({}));
+                if (resp.ok && data.ok) {
+                    if (data.upToDate) {
+                        status.textContent = '✓ Déjà à jour';
+                        setTimeout(() => {
+                            status.textContent = '';
+                            elements.updateBtn.disabled = false;
+                        }, 4000);
+                    } else {
+                        status.textContent = '✔ MAJ OK — redémarrage...';
+                        setTimeout(() => location.reload(), 2500);
+                    }
+                } else {
+                    status.textContent = '✗ Échec : ' + (data.error || ('HTTP ' + resp.status));
+                    elements.updateBtn.disabled = false;
+                }
+            } catch (e) {
+                status.textContent = '✗ Erreur réseau';
+                elements.updateBtn.disabled = false;
+            }
+        });
     }
 };
 

@@ -172,7 +172,7 @@ export DEBIAN_FRONTEND=noninteractive
 # DNS de secours
 grep -q nameserver /etc/resolv.conf || echo "nameserver 1.1.1.1" > /etc/resolv.conf
 apt-get update -y
-apt-get install -y --no-install-recommends curl ca-certificates gnupg git \
+apt-get install -y --no-install-recommends curl ca-certificates gnupg git sudo \
     python3 make g++ sqlite3 build-essential
 # Node.js 20 LTS (NodeSource)
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -239,7 +239,8 @@ EnvironmentFile=/etc/energie-dashboard.env
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=5
-NoNewPrivileges=true
+# NoNewPrivileges est retiré volontairement : nécessaire pour que sudo
+# (bouton MAJ du dashboard) fonctionne depuis le service.
 PrivateTmp=true
 ProtectSystem=full
 ReadWritePaths=/data $REPO_DIR
@@ -249,6 +250,11 @@ WantedBy=multi-user.target
 UNIT
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
+# Bouton MAJ du dashboard : autorise $SERVICE_USER à redémarrer son propre
+# service (scellé à cette seule commande).
+printf 'Defaults:%s !requiretty\n%s ALL=(root) NOPASSWD: /usr/bin/systemctl restart %s\n' \
+  "$SERVICE_USER" "$SERVICE_USER" "$SERVICE_NAME" > /etc/sudoers.d/energie-dashboard
+chmod 0440 /etc/sudoers.d/energie-dashboard
 INNER
 msg_ok "Service systemd installé."
 
