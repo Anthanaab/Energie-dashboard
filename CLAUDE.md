@@ -69,7 +69,9 @@ const HA_CONFIG = {
 - Numbers formatted with French locale (comma as decimal separator)
 - `window.HADashboard` is exposed on the global for browser-console debugging
 
-## Sensors (`sensors.js` — single source of truth)
+## Sensors (`sensors.js` — source de vérité par défaut)
+
+**⚠️ Surcharge au runtime :** les valeurs par défaut vivent dans `sensors.js`, mais elles peuvent être **modifiées depuis le dashboard** (onglet ⚙️ Réglages → `POST /api/sensors`) qui écrit une surcharge persistante dans **`/data/sensors-config.json`** (`sensorConfig.js` fait la fusion). Le serveur et le poller la relisent à chaque utilisation → une modification est appliquée au poll suivant (≤ 30 s), **sans redéploiement**. `POST /api/sensors/reset` supprime le fichier et revient aux défauts. NB : une entité nouvelle/renommée n'a pas d'historique rétroactif.
 
 ```
 MAIN.hp           = sensor.ecojoko_consommation_hp_reseau          (kWh import HP, reset minuit)

@@ -47,6 +47,7 @@
         <nav class="tab-nav">
             <button class="tab-btn active" data-tab="energy">⚡ Énergie</button>
             <button class="tab-btn" data-tab="water">💧 Eau</button>
+            <button class="tab-btn" data-tab="settings">⚙️ Réglages</button>
         </nav>
 
         <!-- ===== ENERGY TAB ===== -->
@@ -472,6 +473,38 @@
             </section>
 
         </div><!-- end #tab-water -->
+
+        <!-- ===== SETTINGS TAB ===== -->
+        <div id="tab-settings" class="tab-content" style="display:none">
+            <section class="settings-section">
+                <h2 class="settings-title">⚙️ Réglages capteurs</h2>
+                <p class="settings-hint">
+                    Modifie ici les entités Home Assistant suivies par le dashboard.<br>
+                    💾 L'enregistrement écrit dans <code>sensors-config.json</code> (volume <code>/data</code>) et est
+                    pris en compte au prochain poll (<strong>≤ 30 s, sans redéploiement</strong>).<br>
+                    ⚠️ Une entité <em>nouvelle</em> ou <em>renommée</em> n'a pas d'historique rétroactif : les graphes
+                    se remplissent à partir de l'enregistrement.
+                </p>
+
+                <h3 class="settings-sub">Capteurs élec principaux</h3>
+                <div id="settings-main" class="settings-rows"></div>
+
+                <h3 class="settings-sub">Capteurs eau</h3>
+                <div id="settings-water" class="settings-rows"></div>
+
+                <h3 class="settings-sub">Appareils / prises connectées</h3>
+                <div id="settings-devices" class="settings-rows"></div>
+                <div class="settings-toolbar">
+                    <button id="settings-add-device" class="export-btn" type="button">➕ Ajouter une prise</button>
+                </div>
+
+                <div class="settings-actions">
+                    <button id="settings-save" class="export-btn" type="button">💾 Enregistrer</button>
+                    <button id="settings-reset" class="export-btn" type="button">↩ Réinitialiser (défauts)</button>
+                    <span id="settings-status" class="update-status"></span>
+                </div>
+            </section>
+        </div><!-- end #tab-settings -->
 
         <!-- Footer -->
         <footer class="footer">

@@ -886,3 +886,23 @@ body::after {
 /* === Mise à jour === */
 .update-status { margin-left: 10px; opacity: 0.9; font-weight: 600; }
 .update-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* === Réglages capteurs (menu ⚙️) === */
+.settings-section { margin-top: 4px; }
+.settings-title { font-size: 1.15rem; margin: 10px 0; }
+.settings-hint { color: #94a3b8; font-size: .85rem; line-height: 1.55; margin-bottom: 16px; }
+.settings-hint code { background: rgba(148,163,184,.15); padding: 1px 5px; border-radius: 4px; }
+.settings-sub { margin: 20px 0 10px; font-size: .95rem; color: #e2e8f0; border-bottom: 1px solid rgba(148,163,184,.15); padding-bottom: 6px; }
+.settings-rows { display: grid; gap: 8px; }
+.settings-row { display: grid; grid-template-columns: 280px 1fr; align-items: center; gap: 10px; }
+.settings-row label { color: #cbd5e1; font-size: .85rem; }
+.settings-row input, .settings-device-row input {
+  background: rgba(15,23,42,.6); color: #f1f5f9; border: 1px solid rgba(148,163,184,.25);
+  border-radius: 8px; padding: 8px 10px; font-size: .85rem; outline: none; width: 100%;
+}
+.settings-row input:focus, .settings-device-row input:focus { border-color: #38bdf8; }
+.settings-device-row { display: grid; grid-template-columns: 130px 1fr 1fr 56px 40px; gap: 8px; align-items: center; }
+.remove-device { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); color: #fca5a5; border-radius: 8px; cursor: pointer; padding: 6px 8px; }
+.remove-device:hover { background: rgba(239,68,68,.3); }
+.settings-toolbar, .settings-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+@media (max-width: 760px) { .settings-row, .settings-device-row { grid-template-columns: 1fr; } .settings-row label { margin-bottom: -4px; } }

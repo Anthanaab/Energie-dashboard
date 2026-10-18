@@ -1,11 +1,12 @@
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
+const fs = require('fs');
 const { execFile, spawn } = require('child_process');
 
 const db = require('./db');
 const poller = require('./poller');
-const { MAIN, WATER, DEVICES } = require('./sensors');
+const sensorConfig = require('./sensorConfig');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);   // 80 dans le LXC (voir install_lxc.sh)
@@ -84,6 +85,7 @@ app.get('/api/weather', async (req, res) => {
 // ===== Endpoint énergie (lecture DB, calculs serveur) =====
 app.get('/api/all-energy-data', (req, res) => {
     try {
+        const { main: MAIN, devices: DEVICES } = sensorConfig.getConfig();
         const period = req.query.period || 'day';
         const len = periodSeconds(period);
         const until = nowSec();
@@ -110,10 +112,11 @@ app.get('/api/all-energy-data', (req, res) => {
         const currentSolarPower = db.getLatest(MAIN.solarPower) ?? 0;
 
         // Prises (top consommateurs)
-        const devices = DEVICES.map(([energyId, powerId, name]) => ({
-            name,
-            energy: db.deltaWithResets(db.sanitize(db.getReadings(energyId, since, until))),
-            power: db.getLatest(powerId) ?? 0,
+        const devices = DEVICES.map((d) => ({
+            name: d.name,
+            icon: d.icon || '🔌',
+            energy: db.deltaWithResets(db.sanitize(db.getReadings(d.energy, since, until))),
+            power: db.getLatest(d.power) ?? 0,
         }));
 
         // Période précédente (comparaison)
@@ -152,6 +155,7 @@ app.get('/api/all-energy-data', (req, res) => {
 // ===== Endpoint eau (lecture DB) =====
 app.get('/api/water-data', (req, res) => {
     try {
+        const { water: WATER } = sensorConfig.getConfig();
         const period = req.query.period || 'day';
         const until = nowSec();
         const since = until - periodSeconds(period);
@@ -211,6 +215,26 @@ app.get('/api/version', async (req, res) => {
     res.json({ commit: r.stdout.trim() || '?', ok: r.code === 0 });
 });
 
+// ===== Réglages capteurs (menu ⚙️) =====
+app.get('/api/sensors', (req, res) => {
+    const cfg = sensorConfig.getConfig();
+    res.json({ ...cfg, path: sensorConfig.CONFIG_PATH, fromOverrides: fs.existsSync(sensorConfig.CONFIG_PATH) });
+});
+
+app.post('/api/sensors', (req, res) => {
+    try {
+        const saved = sensorConfig.saveConfig(req.body || {});
+        res.json({ ok: true, ...saved });
+    } catch (e) {
+        res.status(400).json({ error: String((e && e.message) || e) });
+    }
+});
+
+app.post('/api/sensors/reset', (req, res) => {
+    const cfg = sensorConfig.resetConfig();
+    res.json({ ok: true, ...cfg });
+});
+
 app.post('/api/update', async (req, res) => {
     if (updating) return res.status(409).json({ error: 'Une mise à jour est déjà en cours.' });
     updating = true;
@@ -250,6 +274,7 @@ app.post('/api/update', async (req, res) => {
 // /api/debug/series?entity=<id>&period=month  (entity par défaut = production)
 app.get('/api/debug/series', (req, res) => {
     try {
+        const { main: MAIN } = sensorConfig.getConfig();
         const entity = req.query.entity || MAIN.production;
         const period = req.query.period || 'month';
         const until = nowSec();

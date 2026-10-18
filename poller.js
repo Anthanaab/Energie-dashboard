@@ -4,7 +4,7 @@
 // Si un appel HA échoue, on saute (aucune écriture de 0/null → pas de faux trous).
 
 const db = require('./db');
-const { ALL_ENTITIES } = require('./sensors');
+const sensorConfig = require('./sensorConfig');
 
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '30000', 10);
 const RETENTION_DAYS = parseInt(process.env.RETENTION_DAYS || '365', 10);
@@ -19,15 +19,16 @@ const toLocalISO = (date) => {
 // ===== Collecte instantanée =====
 const pollOnce = async (haClient) => {
   const ts = nowSec();
+  const ids = sensorConfig.getAllEntities();
   const rows = [];
   const results = await Promise.allSettled(
-    ALL_ENTITIES.map(id => haClient.get(`/states/${id}`))
+    ids.map(id => haClient.get(`/states/${id}`))
   );
   results.forEach((r, idx) => {
     if (r.status !== 'fulfilled' || !r.value?.data) return;       // skip si échec
     const v = parseFloat(r.value.data.state);
     if (Number.isNaN(v)) return;                                  // skip 'unavailable'/'unknown'
-    rows.push({ entity_id: ALL_ENTITIES[idx], ts, value: v });
+    rows.push({ entity_id: ids[idx], ts, value: v });
   });
   if (rows.length) db.insertReadings(rows);
   return rows.length;
@@ -41,7 +42,8 @@ const backfill = async (haClient) => {
   const endISO = toLocalISO(now);
 
   let totalInserted = 0;
-  for (const id of ALL_ENTITIES) {
+  const ids = sensorConfig.getAllEntities();
+  for (const id of ids) {
     // Ne backfill que si on n'a pas déjà des données anciennes pour ce capteur
     const oldest = db.getOldestTs(id);
     if (oldest !== null && oldest <= Math.floor(start.getTime() / 1000) + 3600) continue;

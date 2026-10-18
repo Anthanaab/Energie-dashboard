@@ -94,7 +94,14 @@ const elements = {
     weatherWidget: document.getElementById('weather-widget'),
     exportCsvBtn: document.getElementById('export-csv-btn'),
     updateBtn: document.getElementById('update-btn'),
-    updateStatus: document.getElementById('update-status')
+    updateStatus: document.getElementById('update-status'),
+    settingsMain: document.getElementById('settings-main'),
+    settingsWater: document.getElementById('settings-water'),
+    settingsDevices: document.getElementById('settings-devices'),
+    settingsAddDevice: document.getElementById('settings-add-device'),
+    settingsSave: document.getElementById('settings-save'),
+    settingsReset: document.getElementById('settings-reset'),
+    settingsStatus: document.getElementById('settings-status')
 };
 
 // ===== Utility Functions =====
@@ -580,10 +587,10 @@ const fetchAllData = async () => {
         currentData.periodProduction = data.period.production ?? 0;
         currentData.peakPower = data.period.peakPower ?? 0;
 
-        // --- Appareils (icônes côté client) ---
-        currentData.devices = (data.devices || []).map((d, i) => ({
+        // --- Appareils (icônes incluses depuis le serveur, config dynamique) ---
+        currentData.devices = (data.devices || []).map((d) => ({
             ...d,
-            icon: SENSORS.devices[i]?.icon || ''
+            icon: d.icon || ''
         }));
 
         // --- Séries graphiques (déjà en kWh cumulés / W, downsamplées par le serveur) ---
@@ -839,15 +846,20 @@ const getCurrentRefreshFn = () => {
 };
 
 const initTabs = () => {
+    const TABS = ['energy', 'water', 'settings'];
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             activeTab = btn.dataset.tab;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            document.getElementById('tab-energy').style.display = activeTab === 'energy' ? '' : 'none';
-            document.getElementById('tab-water').style.display = activeTab === 'water' ? '' : 'none';
+            TABS.forEach(t => {
+                const el = document.getElementById('tab-' + t);
+                if (el) el.style.display = (t === activeTab) ? '' : 'none';
+            });
             if (activeTab === 'water') {
                 fetchWaterData(elements.periodSelect.value);
+            } else if (activeTab === 'settings') {
+                loadSettings();
             }
         });
     });
@@ -935,6 +947,145 @@ const startAutoRefresh = () => {
     applyAutoRefresh();
 };
 
+// ===== Réglages capteurs (menu ⚙️) =====
+const MAIN_LABELS = {
+    hp: 'Heures Pleines (import réseau)',
+    hc: 'Heures Creuses (import réseau)',
+    surplus: 'Surplus injecté (kWh)',
+    production: 'Production solaire (kWh)',
+    currentPower: 'Puissance instantanée (W)',
+    solarPower: 'Puissance solaire (W)'
+};
+
+let settingsData = null;
+
+const escAttr = (v) => String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+const inputRow = (label, key, value, group) =>
+    `<div class="settings-row">
+        <label>${label}</label>
+        <input type="text" data-group="${group}" data-key="${key}" value="${escAttr(value)}" spellcheck="false" autocomplete="off">
+    </div>`;
+
+const renderMainSettings = () => {
+    if (!elements.settingsMain) return;
+    const m = (settingsData && settingsData.main) || {};
+    elements.settingsMain.innerHTML = Object.keys(MAIN_LABELS).map(k =>
+        inputRow(MAIN_LABELS[k], k, m[k], 'main')).join('');
+};
+
+const renderWaterSettings = () => {
+    if (!elements.settingsWater) return;
+    const w = (settingsData && settingsData.water) || {};
+    elements.settingsWater.innerHTML = [
+        inputRow('Compteur principal (litres)', 'main', w.main, 'water'),
+        inputRow('Compteur extérieur (litres)', 'ext', w.ext, 'water')
+    ].join('');
+};
+
+const renderDevicesSettings = () => {
+    if (!elements.settingsDevices) return;
+    const list = (settingsData && settingsData.devices) || [];
+    elements.settingsDevices.innerHTML = list.map((d, i) => `
+        <div class="settings-device-row">
+            <input data-f="name"   placeholder="Nom"               value="${escAttr(d.name)}"   title="Nom affiché">
+            <input data-f="energy" placeholder="Entité énergie (kWh)" value="${escAttr(d.energy)}" spellcheck="false">
+            <input data-f="power"  placeholder="Entité puissance (W)" value="${escAttr(d.power)}"  spellcheck="false">
+            <input data-f="icon"   placeholder="🔌"               value="${escAttr(d.icon)}"    style="width:56px" title="Icône">
+            <button class="remove-device" data-i="${i}" type="button" title="Supprimer cette prise">🗑</button>
+        </div>`).join('');
+};
+
+const renderSettings = () => { renderMainSettings(); renderWaterSettings(); renderDevicesSettings(); };
+
+const collectSettings = () => {
+    const data = { main: {}, water: {}, devices: [] };
+    document.querySelectorAll('#settings-main [data-key]').forEach(i => data.main[i.dataset.key] = i.value.trim());
+    document.querySelectorAll('#settings-water [data-key]').forEach(i => data.water[i.dataset.key] = i.value.trim());
+    elements.settingsDevices.querySelectorAll('.settings-device-row').forEach(r => {
+        data.devices.push({
+            name: r.querySelector('[data-f="name"]').value.trim(),
+            energy: r.querySelector('[data-f="energy"]').value.trim(),
+            power: r.querySelector('[data-f="power"]').value.trim(),
+            icon: r.querySelector('[data-f="icon"]').value.trim() || '🔌'
+        });
+    });
+    return data;
+};
+
+const loadSettings = async () => {
+    try {
+        const resp = await fetch('/api/sensors');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        settingsData = await resp.json();
+        renderSettings();
+    } catch (e) {
+        console.error('loadSettings', e);
+    }
+};
+
+const saveSettings = async () => {
+    if (!elements.settingsSave) return;
+    elements.settingsSave.disabled = true;
+    if (elements.settingsStatus) elements.settingsStatus.textContent = 'Enregistrement...';
+    try {
+        const resp = await fetch('/api/sensors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(collectSettings())
+        });
+        const d = await resp.json().catch(() => ({}));
+        if (resp.ok) {
+            settingsData = d;
+            renderSettings();
+            if (elements.settingsStatus) elements.settingsStatus.textContent = '✓ Sauvegardé';
+            alert('✔ Configuration des capteurs enregistrée.');
+        } else {
+            const err = d.error || ('HTTP ' + resp.status);
+            if (elements.settingsStatus) elements.settingsStatus.textContent = '✗ ' + err;
+            alert('✗ Échec de l\'enregistrement :\n' + err);
+        }
+    } catch (e) {
+        console.error('saveSettings', e);
+        if (elements.settingsStatus) elements.settingsStatus.textContent = '✗ Erreur';
+        alert('✗ Erreur réseau : ' + (e && e.message));
+    }
+    elements.settingsSave.disabled = false;
+    setTimeout(() => { if (elements.settingsStatus) elements.settingsStatus.textContent = ''; }, 5000);
+};
+
+const resetSettings = async () => {
+    if (!elements.settingsReset || !confirm('Revenir aux capteurs par défaut définis dans sensors.js ?')) return;
+    try {
+        const resp = await fetch('/api/sensors/reset', { method: 'POST' });
+        const d = await resp.json().catch(() => ({}));
+        settingsData = d;
+        renderSettings();
+        if (elements.settingsStatus) elements.settingsStatus.textContent = '✓ Réinitialisé';
+        setTimeout(() => { if (elements.settingsStatus) elements.settingsStatus.textContent = ''; }, 5000);
+    } catch (e) {
+        alert('✗ Erreur réseau : ' + (e && e.message));
+    }
+};
+
+const initSettings = () => {
+    if (elements.settingsAddDevice) elements.settingsAddDevice.addEventListener('click', () => {
+        settingsData = settingsData || { main: {}, water: {}, devices: [] };
+        settingsData.devices.push({ name: '', energy: '', power: '', icon: '🔌' });
+        renderDevicesSettings();
+    });
+    if (elements.settingsDevices) elements.settingsDevices.addEventListener('click', (e) => {
+        const b = e.target.closest('.remove-device');
+        if (!b || !settingsData) return;
+        settingsData.devices.splice(Number(b.dataset.i), 1);
+        renderDevicesSettings();
+    });
+    if (elements.settingsSave) elements.settingsSave.addEventListener('click', saveSettings);
+    if (elements.settingsReset) elements.settingsReset.addEventListener('click', resetSettings);
+};
+
 // ===== Initialize =====
 document.addEventListener('DOMContentLoaded', () => {
     initCharts();
@@ -942,6 +1093,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMixChart();
     initTabs();
     initEventListeners();
+    initSettings();
     startAutoRefresh();
     fetchWeather();
     setInterval(fetchWeather, 10 * 60 * 1000);
