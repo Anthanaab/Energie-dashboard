@@ -1013,13 +1013,18 @@ const collectSettings = () => {
 };
 
 const loadSettings = async () => {
+    // Rendu immédiat (ne jamais laisser l'écran vide) puis remplissage.
+    settingsData = settingsData || { main: {}, water: {}, devices: [] };
+    renderSettings();
     try {
         const resp = await fetch('/api/sensors');
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         settingsData = await resp.json();
         renderSettings();
+        if (elements.settingsStatus) elements.settingsStatus.textContent = '';
     } catch (e) {
         console.error('loadSettings', e);
+        if (elements.settingsStatus) elements.settingsStatus.textContent = '⚠️ Chargement impossible : ' + (e && e.message);
     }
 };
 
