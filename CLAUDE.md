@@ -63,7 +63,7 @@ const HA_CONFIG = {
 
 ## Key details
 
-- Home Assistant at `http://192.168.40.214:8123`; server listens on `0.0.0.0:3000`
+- Home Assistant at `http://<HA_HOST>:8123` (adresse LAN à remplacer) ; server listens on `0.0.0.0:3000`
 - Charts use Chart.js 4.4 + luxon adapter (loaded from CDN)
 - Auto-refresh: configurable interval (10s/30s/1min/5min) with enable/disable toggle. **Note:** display refresh ≠ data freshness — data is only as fresh as the last poll (≤30s).
 - Numbers formatted with French locale (comma as decimal separator)
@@ -172,9 +172,9 @@ Lu depuis `sensor.surplus_de_production_positif` (déjà positif, reset minuit) 
 
 ### Infrastructure
 - **Git:** GitHub → `https://github.com/Anthanaab/Energie-dashboard.git` (branch: `master`)
-- **Docker host:** `192.168.50.69` managed via Portainer → `https://192.168.50.69:9443`
+- **Docker host:** `<DOCKER_HOST_IP>` managed via Portainer → `https://<DOCKER_HOST_IP>:9443`
 - **Stack name:** `energie-dashboard` — deployed via Portainer Repository mode
-- **URL prod:** `http://192.168.50.69:3000`
+- **URL prod:** `http://<DOCKER_HOST_IP>:3000`
 
 ### Config Docker
 - Image `node:20-slim` (Debian/glibc) — requis pour `better-sqlite3` (module natif). Le Dockerfile installe `python3 make g++` au cas où aucun prebuild ne correspond.
@@ -186,7 +186,7 @@ Lu depuis `sensor.surplus_de_production_positif` (déjà positif, reset minuit) 
 ### Développement local (sans Docker)
 Créer un fichier `.env` à la racine (déjà dans `.gitignore`), voir `.env.example` :
 ```
-HA_URL=http://192.168.40.214:8123
+HA_URL=http://<HA_HOST>:8123
 HA_TOKEN=<ton token>
 WEATHER_ENTITY=weather.pirateweather   # optionnel, c'est le défaut
 ```
