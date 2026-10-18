@@ -46,7 +46,7 @@ SERVICE_USER="energie"
 PORT=80                          # port HTTP du dashboard (80 = standard / 3000 en dev local)
 
 # Home Assistant (⚠️ à renseigner — demandé à l'installation si absent)
-HA_URL="${HA_URL:-http://192.168.40.214:8123}"
+HA_URL="${HA_URL:-http://<HA_HOST>:8123}"
 HA_TOKEN="${HA_TOKEN:-}"
 # 🔒 Sécurité : le token HA n'est JAMAIS écrit dans un fichier committé. Il est
 # stocké uniquement dans /etc/energie-dashboard.env (root, chmod 600), lu par le
@@ -99,7 +99,7 @@ if [[ -z "$HA_TOKEN" && -t 0 ]]; then
   msg_info "   Laisse vide pour continuer sans (à renseigner ensuite dans /etc/energie-dashboard.env)."
   read -r -p "  Token d'accès long HA : " _t
   HA_TOKEN="${_t//[[:space:]]/}"                     # retire espaces/sauts (collage)
-  read -r -p "  URL de HA [${HA_URL:-http://192.168.40.214:8123}] : " _u
+  read -r -p "  URL de HA [${HA_URL:-http://<HA_HOST>:8123}] : " _u
   [[ -n "$_u" ]] && HA_URL="$_u"
   if [[ -n "$HA_TOKEN" ]]; then
     msg_ok "Home Assistant configuré (URL=$HA_URL)."
@@ -302,5 +302,11 @@ if [[ -n "$HA_TOKEN" ]]; then
   echo ""
   echo "  🔒 Home Assistant configuré (token stocké en root, chmod 600)."
   echo "     Ne le commit jamais ; il ne vit que dans /etc/energie-dashboard.env."
+fi
+if [[ "$HA_URL" == *"<HA_HOST>"* ]]; then
+  echo ""
+  echo "  ⚠️  HA_URL est un placeholder. Renvoie-le vers ta vraie instance HA :"
+  echo "    pct exec $CT_ID -- sed -i \"s|^HA_URL=.*|HA_URL=http://<IP_HA>:8123|\" /etc/energie-dashboard.env"
+  echo "    pct exec $CT_ID -- systemctl restart $SERVICE_NAME"
 fi
 echo "══════════════════════════════════════════════════════════════"
