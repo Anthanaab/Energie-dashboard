@@ -43,7 +43,7 @@ REPO_URL="${REPO_URL:-https://github.com/Anthanaab/Energie-dashboard.git}"
 REPO_DIR="${REPO_DIR:-/opt/energie-dashboard}"
 SERVICE_NAME="energie-dashboard"
 SERVICE_USER="energie"
-PORT=3000
+PORT=80                          # port HTTP du dashboard (80 = standard / 3000 en dev local)
 
 # Home Assistant (⚠️ à renseigner — demandé à l'installation si absent)
 HA_URL="${HA_URL:-http://192.168.40.214:8123}"
@@ -201,7 +201,7 @@ msg_ok "Code déployé et dépendances installées."
 #  6. Configuration (.env + env système)
 # ───────────────────────────────────────────────────────────────────
 HA_URL="$HA_URL" HA_TOKEN="$HA_TOKEN" DB_PATH="$DB_PATH" \
-POLL_INTERVAL_MS="$POLL_INTERVAL_MS" RETENTION_DAYS="$RETENTION_DAYS" \
+POLL_INTERVAL_MS="$POLL_INTERVAL_MS" RETENTION_DAYS="$RETENTION_DAYS" PORT="$PORT" \
 SERVICE_USER="$SERVICE_USER" REPO_DIR="$REPO_DIR" \
 pct exec "$CT_ID" -- bash -s <<'INNER'
 set -euo pipefail
@@ -209,8 +209,8 @@ printf 'HA_URL=%s\nHA_TOKEN=%s\nWEATHER_ENTITY=weather.pirateweather\n' \
   "$HA_URL" "$HA_TOKEN" > "$REPO_DIR/.env"
 chown "$SERVICE_USER:$SERVICE_USER" "$REPO_DIR/.env"
 chmod 600 "$REPO_DIR/.env"
-printf 'DB_PATH=%s\nPOLL_INTERVAL_MS=%s\nRETENTION_DAYS=%s\n' \
-  "$DB_PATH" "$POLL_INTERVAL_MS" "$RETENTION_DAYS" > /etc/energie-dashboard.env
+printf 'DB_PATH=%s\nPOLL_INTERVAL_MS=%s\nRETENTION_DAYS=%s\nPORT=%s\n' \
+  "$DB_PATH" "$POLL_INTERVAL_MS" "$RETENTION_DAYS" "$PORT" > /etc/energie-dashboard.env
 # ⚠️ Les identifiants HA DOIVENT être dans l'EnvironmentFile : le .env n'est
 # pas lu par Node (pas de dotenv) et le service lit process.env via systemd.
 printf 'HA_URL=%s\nHA_TOKEN=%s\nWEATHER_ENTITY=weather.pirateweather\n' \
@@ -234,6 +234,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=$SERVICE_USER
+# Permet à un utilisateur non-root de lier le port 80 (<1024).
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 WorkingDirectory=$REPO_DIR
 EnvironmentFile=/etc/energie-dashboard.env
 ExecStart=/usr/bin/node server.js
@@ -271,13 +274,14 @@ INNER
 # Récupère l'IP attribuée par DHCP dans le conteneur
 CT_IP=$(pct exec "$CT_ID" -- hostname -I 2>/dev/null | awk '{print $1}' || true)
 [ -z "$CT_IP" ] && CT_IP="(à récupérer via 'pct exec $CT_ID -- hostname -I')"
+[[ "$PORT" == "80" ]] && CT_URL="http://$CT_IP" || CT_URL="http://$CT_IP:$PORT"
 echo ""
 echo "══════════════════════════════════════════════════════════════"
 echo " ✅ Installation terminée !"
 echo "══════════════════════════════════════════════════════════════"
 echo "  Conteneur : $CT_NAME  (id=$CT_ID)"
 echo "  IP (DHCP) : $CT_IP"
-echo "  Dashboard : http://$CT_IP:$PORT"
+echo "  Dashboard : $CT_URL"
 echo "  (fini le fixe — l'adresse est attribuée par le serveur DHCP)"
 echo ""
 echo "  Gestion :"

@@ -8,7 +8,7 @@ const poller = require('./poller');
 const { MAIN, WATER, DEVICES } = require('./sensors');
 
 const app = express();
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);   // 80 dans le LXC (voir install_lxc.sh)
 
 // ===== Configuration Home Assistant =====
 if (!process.env.HA_URL || !process.env.HA_TOKEN) {

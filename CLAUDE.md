@@ -63,7 +63,7 @@ const HA_CONFIG = {
 
 ## Key details
 
-- Home Assistant at `http://<HA_HOST>:8123` (adresse LAN à remplacer) ; server listens on `0.0.0.0:3000`
+- Home Assistant at `http://<HA_HOST>:8123` (adresse LAN à remplacer) ; server listens on `0.0.0.0` (port 80 dans le LXC, 3000 en dev via `PORT`)
 - Charts use Chart.js 4.4 + luxon adapter (loaded from CDN)
 - Auto-refresh: configurable interval (10s/30s/1min/5min) with enable/disable toggle. **Note:** display refresh ≠ data freshness — data is only as fresh as the last poll (≤30s).
 - Numbers formatted with French locale (comma as decimal separator)
@@ -174,7 +174,7 @@ Lu depuis `sensor.surplus_de_production_positif` (déjà positif, reset minuit) 
 - **Git:** GitHub → `https://github.com/Anthanaab/Energie-dashboard.git` (branch: `master`)
 - **Hôte :** LXC créé sur Proxmox VE via `install_lxc.sh`
 - **Dans le LXC :** code dans `/opt/energie-dashboard`, service systemd `energie-dashboard`, DB SQLite dans `/data/energie.db`
-- **URL :** `http://<IP_LXC>:3000`
+- **URL :** `http://<IP_LXC>` (port 80 standard)
 
 ### Installation (nouveau LXC)
 En root sur l'hôte Proxmox :
@@ -184,7 +184,7 @@ bash -c "$(wget -qLO - https://raw.githubusercontent.com/Anthanaab/Energie-dashb
 Le script : attribue un ID libre, détecte la dernière template Debian, demande le token HA en interactif, installe Node 20 + le code, crée le service systemd et affiche l'IP + le lien du dashboard. Paramètres surchargeables en variable d'env : `CT_ID`, `CT_NAME`, `CT_RAM`, `CT_DISK`, `CT_STORAGE`, `HA_URL`, `HA_TOKEN`, …
 
 ### Configuration
-Le service lit `/etc/energie-dashboard.env` (`EnvironmentFile`, root, `chmod 600`) : `HA_URL`, `HA_TOKEN`, `WEATHER_ENTITY`, `DB_PATH=/data/energie.db`, `POLL_INTERVAL_MS`, `RETENTION_DAYS`. **Le token HA ne doit jamais être committé** — il ne vit que dans ce fichier.
+Le service lit `/etc/energie-dashboard.env` (`EnvironmentFile`, root, `chmod 600`) : `PORT=80`, `HA_URL`, `HA_TOKEN`, `WEATHER_ENTITY`, `DB_PATH=/data/energie.db`, `POLL_INTERVAL_MS`, `RETENTION_DAYS`. **Le token HA ne doit jamais être committé** — il ne vit que dans ce fichier. Le service a la capacité `CAP_NET_BIND_SERVICE` pour lier le port 80 en non-root.
 
 ### Mise à jour du LXC (code)
 ```bash
