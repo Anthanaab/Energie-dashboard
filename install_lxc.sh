@@ -37,7 +37,7 @@ CT_STORAGE="${CT_STORAGE:-local-lvm}"    # stockage disque
 CT_TEMPLATE_STORE="${CT_TEMPLATE_STORE:-local}"
 CT_OS="${CT_OS:-debian}"
 CT_VER="${CT_VER:-12}"                   # Debian 12
-CT_TEMPLATE="debian-${CT_VER}-standard_12.2-1_amd64.tar.zst"
+CT_TEMPLATE="${CT_TEMPLATE:-auto}"       # auto = dernière version Debian dispo (sinon ex. "debian-12-standard_12.7-1_amd64.tar.zst")
 
 REPO_URL="${REPO_URL:-https://github.com/Anthanaab/Energie-dashboard.git}"
 REPO_DIR="${REPO_DIR:-/opt/energie-dashboard}"
@@ -91,6 +91,23 @@ fi
 # ───────────────────────────────────────────────────────────────────
 #  2. Template OS (téléchargement si absent)
 # ───────────────────────────────────────────────────────────────────
+# Résolution automatique : si CT_TEMPLATE est 'auto' (ou vide), on détecte
+# la dernière version Debian disponible sur le dépôt (le nom fixe devient
+# obsolète : échec "template: no such template").
+if [[ -z "$CT_TEMPLATE" || "$CT_TEMPLATE" == "auto" ]]; then
+  msg_info "Recherche de la dernière template Debian ${CT_VER}..."
+  pveam update >/dev/null 2>&1 || true
+  CT_TEMPLATE="$(pveam available 2>/dev/null \
+    | grep -oP "debian-${CT_VER}-standard_[0-9.]+-[0-9]+_amd64\.tar\.zst" \
+    | head -1)"
+  if [[ -z "$CT_TEMPLATE" ]]; then
+    msg_error "Aucune template Debian $CT_VER trouvée (pveam available vide)."
+    msg_error "Précise-la : CT_TEMPLATE=debian-12-standard_XX.Y-Z_amd64.tar.zst bash install_lxc.sh"
+    exit 1
+  fi
+  msg_info "Template retenue : $CT_TEMPLATE"
+fi
+
 msg_info "Vérification du template $CT_TEMPLATE..."
 if ! pveam list "$CT_TEMPLATE_STORE" | grep -q "$CT_TEMPLATE"; then
   msg_info "Téléchargement du template..."
