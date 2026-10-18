@@ -89,6 +89,25 @@ if [[ -z "$CT_PW" ]]; then
 fi
 
 # ───────────────────────────────────────────────────────────────────
+#  1d. Saisie interactive des identifiants Home Assistant
+# ───────────────────────────────────────────────────────────────────
+# Si HA_TOKEN n'est pas fourni (env) ET que stdin est un terminal,
+# on le demande à l'installation. En mode non-interactif (pipe/CI),
+# on passe et l'utilisateur renseignera ensuite.
+if [[ -z "$HA_TOKEN" && -t 0 ]]; then
+  echo ""
+  msg_info "Configuration Home Assistant"
+  msg_info "   Laisse vide pour continuer sans (à renseigner ensuite dans /etc/energie-dashboard.env)."
+  read -r -p "  Token d'accès long HA : " _t
+  HA_TOKEN="${_t//[[:space:]]/}"                     # retire espaces/sauts (collage)
+  read -r -p "  URL de HA [${HA_URL:-http://192.168.40.214:8123}] : " _u
+  [[ -n "$_u" ]] && HA_URL="$_u"
+  if [[ -n "$HA_TOKEN" ]]; then
+    msg_ok "Home Assistant configuré (URL=$HA_URL)."
+  fi
+fi
+
+# ───────────────────────────────────────────────────────────────────
 #  2. Template OS (téléchargement si absent)
 # ───────────────────────────────────────────────────────────────────
 # Résolution automatique : si CT_TEMPLATE est 'auto' (ou vide), on détecte
