@@ -898,15 +898,12 @@ const initEventListeners = () => {
                 const resp = await fetch('/api/update', { method: 'POST' });
                 const data = await resp.json().catch(() => ({}));
                 if (resp.ok && data.ok) {
-                    if (data.upToDate) {
-                        say('✓ Déjà à jour');
-                        alert('✔ Déjà à jour — aucune mise à jour disponible.');
-                        setTimeout(() => { say(''); elements.updateBtn.disabled = false; }, 4000);
-                    } else {
-                        say('✔ MAJ OK — redémarrage...');
-                        alert('✔ Mise à jour appliquée. Le dashboard redémarre et sera rechargé...');
-                        setTimeout(() => location.reload(), 2000);
-                    }
+                    const msg = data.upToDate
+                        ? '✔ Déjà à jour — service relancé. La page va se recharger.'
+                        : '✔ Mise à jour appliquée. La page va se recharger.';
+                    say(data.upToDate ? '✓ Déjà à jour — redémarrage...' : '✔ MAJ OK — redémarrage...');
+                    alert(msg);
+                    setTimeout(() => location.reload(), 2000);
                 } else {
                     const err = data.error || ('HTTP ' + resp.status);
                     say('✗ Échec : ' + err);

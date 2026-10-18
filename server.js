@@ -249,15 +249,14 @@ app.post('/api/update', async (req, res) => {
         if (pull.code !== 0) {
             return res.status(500).json({ ok: false, error: 'git pull a échoué (fichier modifié localement ?)', log });
         }
-        if (/already up to date/i.test(pull.stdout)) {
-            return res.json({ ok: true, upToDate: true, log, message: 'Déjà à jour.' });
-        }
+        const upToDate = /already up to date/i.test(pull.stdout);
         const npm = await run('npm', ['install', '--omit=dev'], { cwd: REPO_DIR });
         record('npm install --omit=dev', npm);
         if (npm.code !== 0) {
             return res.status(500).json({ ok: false, error: "npm install a échoué (voir log), le service n'a pas été redémarré.", log });
         }
-        res.json({ ok: true, upToDate: false, log });
+        // On redémarre TOUJOURS : garantit que le dernier code tiré est bien actif.
+        res.json({ ok: true, upToDate, log, message: upToDate ? 'Déjà à jour — service redémarré.' : 'Mise à jour appliquée.' });
         // Redémarrage différé : le serveur s'arrête, on détache le process pour qu'il survive.
         setTimeout(() => {
             spawn('sh', ['-c', `sleep 1 && sudo -n systemctl restart ${SERVICE_NAME}`],
