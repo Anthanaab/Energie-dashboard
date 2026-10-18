@@ -181,17 +181,10 @@ En root sur l'hôte Proxmox :
 ```bash
 bash -c "$(wget -qLO - https://raw.githubusercontent.com/Anthanaab/Energie-dashboard/master/install_lxc.sh)"
 ```
-Le script : attribue un ID libre, détecte la dernière template Debian, demande le token HA en interactif, installe Node 20 + le code, crée le service systemd et affiche l'IP + le lien du dashboard. Paramètres surchargeables en variable d'env : `CT_ID`, `CT_NAME`, `CT_RAM`, `CT_DISK`, `CT_STORAGE`, `HA_URL`, `HA_TOKEN`, `MIGRATE`, …
+Le script : attribue un ID libre, détecte la dernière template Debian, demande le token HA en interactif, installe Node 20 + le code, crée le service systemd et affiche l'IP + le lien du dashboard. Paramètres surchargeables en variable d'env : `CT_ID`, `CT_NAME`, `CT_RAM`, `CT_DISK`, `CT_STORAGE`, `HA_URL`, `HA_TOKEN`, …
 
 ### Configuration
 Le service lit `/etc/energie-dashboard.env` (`EnvironmentFile`, root, `chmod 600`) : `HA_URL`, `HA_TOKEN`, `WEATHER_ENTITY`, `DB_PATH=/data/energie.db`, `POLL_INTERVAL_MS`, `RETENTION_DAYS`. **Le token HA ne doit jamais être committé** — il ne vit que dans ce fichier.
-
-### Migration depuis Docker (optionnel)
-Pour conserver l'historique de l'ancien serveur Docker avant décommissionnement, recopier la base dans le LXC :
-```bash
-CT_ID=<id> MIGRATE=1 DOCKER_VOL=/var/lib/docker/volumes/energie-data/_data bash install_lxc.sh
-```
-(Utilise le step 8 du script ; sans Docker, ignorer `MIGRATE`.)
 
 ### Mise à jour du LXC (code)
 ```bash

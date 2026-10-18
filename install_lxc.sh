@@ -45,7 +45,7 @@ SERVICE_NAME="energie-dashboard"
 SERVICE_USER="energie"
 PORT=3000
 
-# Home Assistant (⚠️ à renseigner — ou copié depuis Docker, voir plus bas)
+# Home Assistant (⚠️ à renseigner — demandé à l'installation si absent)
 HA_URL="${HA_URL:-http://192.168.40.214:8123}"
 HA_TOKEN="${HA_TOKEN:-}"
 # 🔒 Sécurité : le token HA n'est JAMAIS écrit dans un fichier committé. Il est
@@ -55,10 +55,6 @@ HA_TOKEN="${HA_TOKEN:-}"
 DB_PATH="/data/energie.db"
 POLL_INTERVAL_MS="${POLL_INTERVAL_MS:-30000}"
 RETENTION_DAYS="${RETENTION_DAYS:-365}"
-
-# Migration DB Docker (défaut OFF — active avec MIGRATE=1)
-MIGRATE="${MIGRATE:-0}"
-DOCKER_VOL="${DOCKER_VOL:-/var/lib/docker/volumes/energie-data/_data}"
 
 # ───────────────────────────────────────────────────────────────────
 #  1. Pré-vérifications
@@ -257,20 +253,7 @@ INNER
 msg_ok "Service systemd installé."
 
 # ───────────────────────────────────────────────────────────────────
-#  8. (Option) Migration de la DB depuis le volume Docker
-# ───────────────────────────────────────────────────────────────────
-if [[ "$MIGRATE" == "1" && -f "$DOCKER_VOL/energie.db" ]]; then
-  msg_info "Migration de la base SQLite depuis Docker..."
-  tar -C "$(dirname "$DOCKER_VOL")" -cf - "$(basename "$DOCKER_VOL")/energie.db" \
-    | pct exec "$CT_ID" -- tar -C /data -xf -
-  pct exec "$CT_ID" -- chown "$SERVICE_USER:$SERVICE_USER" /data/energie.db
-  msg_ok "Base migrée (historique conservé)."
-elif [[ "$MIGRATE" == "1" ]]; then
-  msg_info "Volume Docker '$DOCKER_VOL/energie.db' introuvable — départ à zéro."
-fi
-
-# ───────────────────────────────────────────────────────────────────
-#  9. Démarrage + vérification
+#  8. Démarrage + vérification
 # ───────────────────────────────────────────────────────────────────
 SERVICE_NAME="$SERVICE_NAME" pct exec "$CT_ID" -- bash -s <<'INNER'
 set -euo pipefail
